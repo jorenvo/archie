@@ -29,14 +29,19 @@ func writeWord(word string) func(*gocui.Gui) error {
 }
 
 func speedRead(g *gocui.Gui, s string) {
+	containsText := false
 	word := ""
 	for _, c := range s {
-		if unicode.IsSpace(c) {
+		word = word + string(c)
+		if containsText && (unicode.IsSpace(c) || unicode.IsPunct(c)) {
+			fmt.Println(word)
 			g.Update(writeWord(word))
 			word = ""
-			time.Sleep(500 * time.Millisecond)
+			containsText = false
+			return;
+			time.Sleep(1000 * time.Millisecond)
 		} else {
-			word = word + string(c)
+			containsText = true
 		}
 	}
 }
@@ -52,8 +57,9 @@ func mainReader(g *gocui.Gui) {
 }
 
 func layout(g *gocui.Gui) error {
+	const size = 40
 	maxX, maxY := g.Size()
-	if v, err := g.SetView("hello", maxX/2-7, maxY/2, maxX/2+7, maxY/2+2); err != nil {
+	if v, err := g.SetView("hello", maxX/2-size/2, maxY/2, maxX/2+size/2, maxY/2+2); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
