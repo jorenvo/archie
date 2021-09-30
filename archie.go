@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/jroimartin/gocui"
+	"github.com/awesome-gocui/gocui"
 	"io"
 	"log"
 	"os"
@@ -34,11 +34,9 @@ func speedRead(g *gocui.Gui, s string) {
 	for _, c := range s {
 		word = word + string(c)
 		if containsText && (unicode.IsSpace(c) || unicode.IsPunct(c)) {
-			fmt.Println(word)
 			g.Update(writeWord(word))
 			word = ""
 			containsText = false
-			return;
 			time.Sleep(1000 * time.Millisecond)
 		} else {
 			containsText = true
@@ -59,7 +57,7 @@ func mainReader(g *gocui.Gui) {
 func layout(g *gocui.Gui) error {
 	const size = 40
 	maxX, maxY := g.Size()
-	if v, err := g.SetView("hello", maxX/2-size/2, maxY/2, maxX/2+size/2, maxY/2+2); err != nil {
+	if v, err := g.SetView("hello", maxX/2-size/2, maxY/2, maxX/2+size/2, maxY/2+2, 0); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
@@ -73,7 +71,7 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 }
 
 func main() {
-	g, err := gocui.NewGui(gocui.OutputNormal)
+	g, err := gocui.NewGui(gocui.OutputNormal, false)
 	if err != nil {
 		log.Panicln(err)
 	}
