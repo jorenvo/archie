@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
-	"fmt"
-	"github.com/awesome-gocui/gocui"
+	// "fmt"
+	"github.com/gdamore/tcell/v2"
 	"io"
 	"log"
 	"os"
@@ -11,30 +11,21 @@ import (
 	"unicode"
 )
 
-func getMainView(g *gocui.Gui) *gocui.View {
-	view, err := g.View("hello")
-	if err != nil {
-		log.Fatalf("Error getting view: %s\n", err)
+func writeWord(s tcell.Screen, word string) {
+	s.Clear()
+	for i, c := range word {
+		s.SetContent(i, 0, c, nil, tcell.StyleDefault)		
 	}
-	return view
+	s.Show()
 }
 
-func writeWord(word string) func(*gocui.Gui) error {
-	return func(g *gocui.Gui) error {
-		view := getMainView(g)
-		view.Clear()
-		fmt.Fprintf(view, "%s", word)
-		return nil
-	}
-}
-
-func speedRead(g *gocui.Gui, s string) {
+func speedRead(s tcell.Screen, text string) {
 	containsText := false
 	word := ""
-	for _, c := range s {
+	for _, c := range text {
 		word = word + string(c)
 		if containsText && (unicode.IsSpace(c) || unicode.IsPunct(c)) {
-			g.Update(writeWord(word))
+			writeWord(s, word)
 			word = ""
 			containsText = false
 			time.Sleep(1000 * time.Millisecond)
@@ -44,48 +35,50 @@ func speedRead(g *gocui.Gui, s string) {
 	}
 }
 
-func mainReader(g *gocui.Gui) {
+func mainReader(s tcell.Screen) {
 	reader := bufio.NewReader(os.Stdin)
 	text, err := reader.ReadString('\000')
 	if err != io.EOF {
 		log.Fatalf("Could not read stdin: %s\n", err)
 	}
 
-	speedRead(g, text)
+	speedRead(s, text)
 }
 
-func layout(g *gocui.Gui) error {
-	const size = 40
-	maxX, maxY := g.Size()
-	if v, err := g.SetView("hello", maxX/2-size/2, maxY/2, maxX/2+size/2, maxY/2+2, 0); err != nil {
-		if err != gocui.ErrUnknownView {
-			return err
-		}
-		fmt.Fprintln(v, "Hello world!")
+func drawUpdateCounter(events int, s tcell.Screen) {
+	for i := 0; i < events; i++ {
+		s.SetContent(i, 0, tcell.RuneHLine, nil, tcell.StyleDefault)
 	}
-	return nil
 }
 
-func quit(g *gocui.Gui, v *gocui.View) error {
-	return gocui.ErrQuit
+func quit(s tcell.Screen) {
+	s.Fini()
+	os.Exit(0)
 }
 
 func main() {
-	g, err := gocui.NewGui(gocui.OutputNormal, false)
+	s, err := tcell.NewScreen()
 	if err != nil {
-		log.Panicln(err)
+		log.Fatalln(err)
 	}
-	defer g.Close()
-
-	g.SetManagerFunc(layout)
-
-	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
-		log.Panicln(err)
+	if err := s.Init(); err != nil {
+		log.Fatalln(err)
 	}
 
-	go mainReader(g)
+	go mainReader(s)
 
-	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		log.Panicln(err)
+	for {
+		s.Show()
+
+		ev := s.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventResize:
+			s.Sync()
+		case *tcell.EventKey:
+			switch ev.Key() {
+			case tcell.KeyEscape, tcell.KeyEnter, tcell.KeyCtrlC:
+				quit(s)
+			}
+		}
 	}
 }
