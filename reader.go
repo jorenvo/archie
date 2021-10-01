@@ -10,10 +10,11 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+	// "fmt"
 )
 
 // TODO global variables?
-var delayMs time.Duration = 1_000
+var delayMs int64 = 1_000
 var displayedWord string = ""
 
 func write(s tcell.Screen, word string, col int, row int) {
@@ -40,7 +41,7 @@ func writeStatus(s tcell.Screen, word string) {
 
 func updateUI(s tcell.Screen) {
 	s.Clear()
-	writeStatus(s, strconv.Itoa(int(delayMs)))
+	writeStatus(s, strconv.FormatInt(delayMs, 10))
 	writeWord(s, displayedWord)
 }
 
@@ -61,6 +62,24 @@ func handleComms(comm chan int) {
 	}
 }
 
+// TODO: this is available in go v1.17
+func unixMilli() int64 {
+	return time.Now().UnixNano() / int64(time.Millisecond)
+}
+
+// Waits but still handles comms at 60 Hz
+func sleep(comm chan int) {
+	const Hz = 60
+	remainingMs := delayMs
+
+	for remainingMs > 0 {
+		prevTime := unixMilli()
+		handleComms(comm)
+		time.Sleep(1_000 / Hz * time.Millisecond)
+		remainingMs -= unixMilli() - prevTime
+	}
+}
+
 func speedRead(s tcell.Screen, text string, comm chan int) {
 	containsText := false
 	word := ""
@@ -71,11 +90,10 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 			displayedWord = word
 			word = ""
 
-			handleComms(comm)
 			updateUI(s)
 
 			containsText = false
-			time.Sleep(delayMs * time.Millisecond)
+			sleep(comm)
 		} else {
 			containsText = true
 		}
