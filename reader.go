@@ -17,6 +17,15 @@ import (
 var paused bool = true
 var wordsPerMinute int = 300
 var displayedWord string = ""
+var currentPos int = 0
+var maxPos int = 0
+
+var spinner []string = []string{"⠁", "⠈", "⠐", "⠂"}
+var spinnerIndex int = 0
+
+func spinnerInc() {
+	spinnerIndex = (spinnerIndex + 1) % len(spinner)
+}
 
 func write(s tcell.Screen, word string, col int, row int) {
 	for i, c := range word {
@@ -35,13 +44,6 @@ func writeWord(s tcell.Screen, word string) {
 	)
 }
 
-var spinner []string = []string{"⠁", "⠈", "⠐", "⠂"}
-var spinnerIndex int = 0
-
-func spinnerInc() {
-	spinnerIndex = (spinnerIndex + 1) % len(spinner)
-}
-
 func statusHelp() string {
 	if paused {
 		return "[Press SPC to start.]"
@@ -50,12 +52,38 @@ func statusHelp() string {
 	}
 }
 
+func statusProgress() string {
+	// width: 16 * 2 = 32
+	const runeAmount int = 16
+	const width int = runeAmount * 2
+	completed := int(math.Round(float64(currentPos) / float64(maxPos) * float64(width)))
+
+	s := ""
+	double := completed / 2
+	for i := 0; i < double; i++ {
+		s += "⠿"
+	}
+
+	if double * 2 < completed {
+		s += "⠇"
+	}
+
+	for utf8.RuneCountInString(s) < runeAmount {
+		s += " "
+	}
+
+	return s
+}
+
 func writeStatus(s tcell.Screen, word string) {
 	width, height := s.Size()
 	write(s, spinner[spinnerIndex], 0, height-1)
 
 	help := statusHelp()
-	write(s, help, width / 2 - utf8.RuneCountInString(help) / 2, height-1)
+	write(s, help, width / 2 - utf8.RuneCountInString(help) / 2, height-2)
+
+	progress := statusProgress()
+	write(s, progress, width / 2 - utf8.RuneCountInString(progress) / 2, height-1)
 
 	write(s, word, width-utf8.RuneCountInString(word), height-1)
 }
@@ -120,7 +148,11 @@ func wait(s tcell.Screen, comm chan int) {
 func speedRead(s tcell.Screen, text string, comm chan int) {
 	word := ""
 
-	for _, c := range text {
+	// TODO this is probably too expensive, use bytes instead
+	maxPos = utf8.RuneCountInString(text)
+
+	for i, c := range text {
+		currentPos = i
 		if unicode.IsSpace(c) {
 			if word == "" {
 				continue
