@@ -13,6 +13,7 @@ import (
 )
 
 var delayMs time.Duration = 1_000
+var displayedWord string = ""
 
 func write(s tcell.Screen, word string, col int, row int) {
 	for i, c := range word {
@@ -34,6 +35,12 @@ func writeWord(s tcell.Screen, word string) {
 func writeStatus(s tcell.Screen, word string) {
 	width, height := s.Size()
 	write(s, word, width-8, height-1)
+}
+
+func updateUI(s tcell.Screen) {
+	s.Clear()
+	writeStatus(s, strconv.Itoa(int(delayMs)))
+	writeWord(s, displayedWord)
 }
 
 func handleComms(comm chan int) {
@@ -60,13 +67,14 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 	for _, c := range text {
 		word = word + string(c)
 		if containsText && (unicode.IsSpace(c) || unicode.IsPunct(c)) {
-			s.Clear()
-			writeStatus(s, strconv.Itoa(int(delayMs)))
-			writeWord(s, word)
+			displayedWord = word
 			word = ""
+
+			handleComms(comm)
+			updateUI(s)
+
 			containsText = false
 			time.Sleep(delayMs * time.Millisecond)
-			handleComms(comm)
 		} else {
 			containsText = true
 		}
