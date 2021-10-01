@@ -35,9 +35,17 @@ func writeWord(s tcell.Screen, word string) {
 	)
 }
 
+var spinner []string = []string{"⠁", "⠈", "⠐", "⠂"}
+var spinnerIndex int = 0
+
+func spinnerInc() {
+	spinnerIndex = (spinnerIndex + 1) % len(spinner)
+}
+
 func writeStatus(s tcell.Screen, word string) {
 	width, height := s.Size()
 	write(s, word, width-utf8.RuneCountInString(word), height-1)
+	write(s, spinner[spinnerIndex], 0, height-1)
 }
 
 func updateUI(s tcell.Screen) {
@@ -111,7 +119,7 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 		if containsText && (unicode.IsSpace(c) || unicode.IsPunct(c)) {
 			displayedWord = word
 			word = ""
-
+			spinnerInc()
 			updateUI(s)
 
 			containsText = false
