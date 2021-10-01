@@ -6,15 +6,15 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"time"
 	"unicode"
 	"unicode/utf8"
-	"strconv"
 )
 
 func write(s tcell.Screen, word string, col int, row int) {
 	for i, c := range word {
-		s.SetContent(col + i, row, c, nil, tcell.StyleDefault)
+		s.SetContent(col+i, row, c, nil, tcell.StyleDefault)
 	}
 	s.Show()
 }
@@ -24,14 +24,14 @@ func writeWord(s tcell.Screen, word string) {
 	write(
 		s,
 		word,
-		width/2 - utf8.RuneCountInString(word)/2,
+		width/2-utf8.RuneCountInString(word)/2,
 		height/2,
 	)
 }
 
 func writeStatus(s tcell.Screen, word string) {
 	width, height := s.Size()
-	write(s, word, width - 8, height - 1)
+	write(s, word, width-8, height-1)
 }
 
 func speedRead(s tcell.Screen, text string, comm chan int) {
@@ -48,15 +48,20 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 			word = ""
 			containsText = false
 			time.Sleep(delayMs * time.Millisecond)
-			select {
-			case msg := <-comm:
-				switch msg {
-				case COMM_SPEED_INC:
-					delayMs -= 100
-				case COMM_SPEED_DEC:
-					delayMs += 100
+
+			messagesPending := true
+			for messagesPending {
+				select {
+				case msg := <-comm:
+					switch msg {
+					case COMM_SPEED_INC:
+						delayMs -= 100
+					case COMM_SPEED_DEC:
+						delayMs += 100
+					}
+				default:
+					messagesPending = false
 				}
-			default:
 			}
 		} else {
 			containsText = true
