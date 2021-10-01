@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 )
 
+// TODO global variables?
 var delayMs time.Duration = 1_000
 var displayedWord string = ""
 
@@ -50,7 +51,7 @@ func handleComms(comm chan int) {
 		case msg := <-comm:
 			switch msg {
 			case COMM_SPEED_INC:
-				delayMs -= 100
+				delayMs -= 100 // TODO min
 			case COMM_SPEED_DEC:
 				delayMs += 100
 			}
