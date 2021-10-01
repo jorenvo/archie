@@ -45,7 +45,8 @@ func updateUI(s tcell.Screen) {
 	writeWord(s, displayedWord)
 }
 
-func handleComms(comm chan int) {
+func handleComms(comm chan int) bool {
+	handledMessage := false
 	messagesPending := true
 	for messagesPending {
 		select {
@@ -56,10 +57,13 @@ func handleComms(comm chan int) {
 			case COMM_SPEED_DEC:
 				delayMs += 100
 			}
+			handledMessage = true
 		default:
 			messagesPending = false
 		}
 	}
+
+	return handledMessage
 }
 
 // TODO: this is available in go v1.17
@@ -68,13 +72,17 @@ func unixMilli() int64 {
 }
 
 // Waits but still handles comms at 60 Hz
-func sleep(comm chan int) {
+func sleep(s tcell.Screen, comm chan int) {
 	const Hz = 60
 	remainingMs := delayMs
 
 	for remainingMs > 0 {
 		prevTime := unixMilli()
-		handleComms(comm)
+
+		if handleComms(comm) {
+			updateUI(s)
+		}
+
 		time.Sleep(1_000 / Hz * time.Millisecond)
 		remainingMs -= unixMilli() - prevTime
 	}
@@ -93,7 +101,7 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 			updateUI(s)
 
 			containsText = false
-			sleep(comm)
+			sleep(s, comm)
 		} else {
 			containsText = true
 		}
