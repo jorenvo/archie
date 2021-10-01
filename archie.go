@@ -37,6 +37,8 @@ func main() {
 				quit(s)
 			}
 			switch ev.Rune() {
+			case 32: // SPC
+				comm <- COMM_TOGGLE
 			case 43: // +
 				comm <- COMM_SPEED_INC
 			case 45: // -

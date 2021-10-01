@@ -14,6 +14,7 @@ import (
 )
 
 // TODO global variables?
+var paused bool = false
 var wordsPerMinute int = 300
 var displayedWord string = ""
 
@@ -57,6 +58,8 @@ func handleComms(comm chan int) bool {
 				wordsPerMinute += speedInc
 			case COMM_SPEED_DEC:
 				wordsPerMinute -= speedInc
+			case COMM_TOGGLE:
+				paused = !paused
 			}
 			handledMessage = true
 		default:
@@ -89,7 +92,13 @@ func wait(s tcell.Screen, comm chan int) {
 		}
 
 		time.Sleep(1_000 / Hz * time.Millisecond)
-		remainingMs -= unixMilli() - prevTime
+
+		// Immediately exit this wait when unpausing
+		if paused {
+			prevTime = 0
+		} else {
+			remainingMs -= unixMilli() - prevTime
+		}
 	}
 }
 
