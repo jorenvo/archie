@@ -1,7 +1,7 @@
 package main
 
 import (
-	// "fmt"
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"log"
 	"os"
@@ -36,13 +36,16 @@ func main() {
 			case tcell.KeyEscape, tcell.KeyEnter, tcell.KeyCtrlC:
 				quit(s)
 			}
-			switch ev.Rune() {
-			case 32: // SPC
+			rune := fmt.Sprintf("%c", ev.Rune())
+			switch rune {
+			case " ":
 				comm <- COMM_TOGGLE
-			case 43: // +
+			case "+":
 				comm <- COMM_SPEED_INC
-			case 45: // -
+			case "-":
 				comm <- COMM_SPEED_DEC
+			case "q":
+				quit(s)
 			}
 		}
 	}
