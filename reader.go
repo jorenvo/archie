@@ -78,11 +78,6 @@ func handleComms(comm chan int) bool {
 	return handledMessage
 }
 
-// TODO: this is available in go v1.17
-func unixMilli() int64 {
-	return time.Now().UnixNano() / int64(time.Millisecond)
-}
-
 func getDelayMs() int64 {
 	return int64(math.Round(1_000 / (float64(wordsPerMinute) / float64(60))))
 }
@@ -93,7 +88,7 @@ func wait(s tcell.Screen, comm chan int) {
 	remainingMs := getDelayMs()
 
 	for remainingMs > 0 {
-		prevTime := unixMilli()
+		prevTime := time.Now().UnixMilli()
 
 		if handleComms(comm) {
 			updateUI(s)
@@ -105,7 +100,7 @@ func wait(s tcell.Screen, comm chan int) {
 		if paused {
 			prevTime = 0
 		} else {
-			remainingMs -= unixMilli() - prevTime
+			remainingMs -= time.Now().UnixMilli() - prevTime
 		}
 	}
 }
