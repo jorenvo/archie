@@ -138,10 +138,11 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 
 func mainReader(s tcell.Screen, comm chan int) {
 	reader := bufio.NewReader(os.Stdin)
-	text, err := reader.ReadString('\000')
-	if err != io.EOF {
-		log.Fatalf("Could not read stdin: %s\n", err)
+	buf, err := io.ReadAll(reader)
+	if err != nil {
+		log.Fatalf("Could not read stdin: %v\n", err)
 	}
 
+	text := string(buf)
 	speedRead(s, text, comm)
 }
