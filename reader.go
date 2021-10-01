@@ -14,7 +14,7 @@ import (
 )
 
 // TODO global variables?
-var paused bool = false
+var paused bool = true
 var wordsPerMinute int = 300
 var displayedWord string = ""
 
