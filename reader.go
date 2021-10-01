@@ -111,21 +111,20 @@ func wait(s tcell.Screen, comm chan int) {
 }
 
 func speedRead(s tcell.Screen, text string, comm chan int) {
-	containsText := false
 	word := ""
 
 	for _, c := range text {
-		word = word + string(c)
-		if containsText && (unicode.IsSpace(c) || unicode.IsPunct(c)) {
+		if unicode.IsSpace(c) {
+			if word == "" {
+				continue
+			}
 			displayedWord = word
 			word = ""
 			spinnerInc()
 			updateUI(s)
-
-			containsText = false
 			wait(s, comm)
 		} else {
-			containsText = true
+			word = word + string(c)
 		}
 	}
 }
