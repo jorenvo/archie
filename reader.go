@@ -14,7 +14,7 @@ import (
 )
 
 // TODO global variables?
-var delayMs int64 = 1_000
+var wordsPerMinute int = 300
 var displayedWord string = ""
 
 func write(s tcell.Screen, word string, col int, row int) {
@@ -39,19 +39,14 @@ func writeStatus(s tcell.Screen, word string) {
 	write(s, word, width-utf8.RuneCountInString(word), height-1)
 }
 
-func delayToWordsPerMinute(delayMs int64) string {
-	wordsPerSecond := float64(1_000) / float64(delayMs)
-	return fmt.Sprintf("%d words per min", int(math.Round(wordsPerSecond*60)))
-}
-
 func updateUI(s tcell.Screen) {
 	s.Clear()
-	writeStatus(s, delayToWordsPerMinute(delayMs))
+	writeStatus(s, fmt.Sprintf("%d words per min", wordsPerMinute))
 	writeWord(s, displayedWord)
 }
 
 func handleComms(comm chan int) bool {
-	const speedInc = 500
+	const speedInc = 5
 	handledMessage := false
 	messagesPending := true
 	for messagesPending {
@@ -59,9 +54,9 @@ func handleComms(comm chan int) bool {
 		case msg := <-comm:
 			switch msg {
 			case COMM_SPEED_INC:
-				delayMs -= speedInc // TODO min
+				wordsPerMinute += speedInc
 			case COMM_SPEED_DEC:
-				delayMs += speedInc
+				wordsPerMinute -= speedInc
 			}
 			handledMessage = true
 		default:
@@ -77,10 +72,14 @@ func unixMilli() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
 
+func getDelayMs() int64 {
+	return int64(math.Round(1_000 / (float64(wordsPerMinute) / float64(60))))
+}
+
 // Waits but still handles comms at 60 Hz
 func sleep(s tcell.Screen, comm chan int) {
 	const Hz = 60
-	remainingMs := delayMs
+	remainingMs := getDelayMs()
 
 	for remainingMs > 0 {
 		prevTime := unixMilli()
