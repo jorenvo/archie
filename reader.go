@@ -77,7 +77,7 @@ func getDelayMs() int64 {
 }
 
 // Waits but still handles comms at 60 Hz
-func sleep(s tcell.Screen, comm chan int) {
+func wait(s tcell.Screen, comm chan int) {
 	const Hz = 60
 	remainingMs := getDelayMs()
 
@@ -106,7 +106,7 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 			updateUI(s)
 
 			containsText = false
-			sleep(s, comm)
+			wait(s, comm)
 		} else {
 			containsText = true
 		}
