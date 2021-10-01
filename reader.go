@@ -12,6 +12,8 @@ import (
 	"unicode/utf8"
 )
 
+var delayMs time.Duration = 1_000
+
 func write(s tcell.Screen, word string, col int, row int) {
 	for i, c := range word {
 		s.SetContent(col+i, row, c, nil, tcell.StyleDefault)
@@ -34,10 +36,26 @@ func writeStatus(s tcell.Screen, word string) {
 	write(s, word, width-8, height-1)
 }
 
+func handleComms(comm chan int) {
+	messagesPending := true
+	for messagesPending {
+		select {
+		case msg := <-comm:
+			switch msg {
+			case COMM_SPEED_INC:
+				delayMs -= 100
+			case COMM_SPEED_DEC:
+				delayMs += 100
+			}
+		default:
+			messagesPending = false
+		}
+	}
+}
+
 func speedRead(s tcell.Screen, text string, comm chan int) {
 	containsText := false
 	word := ""
-	var delayMs time.Duration = 1_000
 
 	for _, c := range text {
 		word = word + string(c)
@@ -48,21 +66,7 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 			word = ""
 			containsText = false
 			time.Sleep(delayMs * time.Millisecond)
-
-			messagesPending := true
-			for messagesPending {
-				select {
-				case msg := <-comm:
-					switch msg {
-					case COMM_SPEED_INC:
-						delayMs -= 100
-					case COMM_SPEED_DEC:
-						delayMs += 100
-					}
-				default:
-					messagesPending = false
-				}
-			}
+			handleComms(comm)
 		} else {
 			containsText = true
 		}
