@@ -42,10 +42,22 @@ func spinnerInc() {
 	spinnerIndex = (spinnerIndex + 1) % len(spinner)
 }
 
+func statusHelp() string {
+	if paused {
+		return "[Press SPC to start.]"
+	} else {
+		return ""
+	}
+}
+
 func writeStatus(s tcell.Screen, word string) {
 	width, height := s.Size()
-	write(s, word, width-utf8.RuneCountInString(word), height-1)
 	write(s, spinner[spinnerIndex], 0, height-1)
+
+	help := statusHelp()
+	write(s, help, width / 2 - utf8.RuneCountInString(help) / 2, height-1)
+
+	write(s, word, width-utf8.RuneCountInString(word), height-1)
 }
 
 func updateUI(s tcell.Screen) {
