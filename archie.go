@@ -9,12 +9,14 @@ import (
 	"os"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 func writeWord(s tcell.Screen, word string) {
 	s.Clear()
+	width, height := s.Size()
 	for i, c := range word {
-		s.SetContent(i, 0, c, nil, tcell.StyleDefault)		
+		s.SetContent(width / 2 + i - utf8.RuneCountInString(word) / 2, height / 2, c, nil, tcell.StyleDefault)		
 	}
 	s.Show()
 }
@@ -43,12 +45,6 @@ func mainReader(s tcell.Screen) {
 	}
 
 	speedRead(s, text)
-}
-
-func drawUpdateCounter(events int, s tcell.Screen) {
-	for i := 0; i < events; i++ {
-		s.SetContent(i, 0, tcell.RuneHLine, nil, tcell.StyleDefault)
-	}
 }
 
 func quit(s tcell.Screen) {
