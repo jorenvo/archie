@@ -27,9 +27,9 @@ func main() {
 		s.Show()
 
 		ev := s.PollEvent()
+		// EventResize events happen every time a Show happens. Avoid
+		// calling an expensive Sync here.
 		switch ev := ev.(type) {
-		case *tcell.EventResize:
-			s.Sync()
 		case *tcell.EventKey:
 			switch ev.Key() {
 			case tcell.KeyEscape, tcell.KeyEnter, tcell.KeyCtrlC:
