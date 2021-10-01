@@ -16,7 +16,9 @@ func writeWord(s tcell.Screen, word string) {
 	s.Clear()
 	width, height := s.Size()
 	for i, c := range word {
-		s.SetContent(width / 2 + i - utf8.RuneCountInString(word) / 2, height / 2, c, nil, tcell.StyleDefault)		
+		col := width / 2 + i - utf8.RuneCountInString(word) / 2
+		row := height / 2
+		s.SetContent(col, row, c, nil, tcell.StyleDefault)
 	}
 	s.Show()
 }
