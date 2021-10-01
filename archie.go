@@ -21,7 +21,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	go mainReader(s)
+	comm := make(chan int, 64)
+	go mainReader(s, comm)
 
 	for {
 		s.Show()
@@ -34,6 +35,12 @@ func main() {
 			switch ev.Key() {
 			case tcell.KeyEscape, tcell.KeyEnter, tcell.KeyCtrlC:
 				quit(s)
+			}
+			switch ev.Rune() {
+			case 43: // +
+				comm <- COMM_SPEED_INC
+			case 45: // -
+				comm <- COMM_SPEED_DEC
 			}
 		}
 	}
