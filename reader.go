@@ -2,15 +2,15 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"io"
 	"log"
+	"math"
 	"os"
-	"strconv"
 	"time"
 	"unicode"
 	"unicode/utf8"
-	// "fmt"
 )
 
 // TODO global variables?
@@ -36,16 +36,22 @@ func writeWord(s tcell.Screen, word string) {
 
 func writeStatus(s tcell.Screen, word string) {
 	width, height := s.Size()
-	write(s, word, width-8, height-1)
+	write(s, word, width-utf8.RuneCountInString(word), height-1)
+}
+
+func delayToWordsPerMinute(delayMs int64) string {
+	wordsPerSecond := float64(1_000) / float64(delayMs)
+	return fmt.Sprintf("%d words per min", int(math.Round(wordsPerSecond*60)))
 }
 
 func updateUI(s tcell.Screen) {
 	s.Clear()
-	writeStatus(s, strconv.FormatInt(delayMs, 10))
+	writeStatus(s, delayToWordsPerMinute(delayMs))
 	writeWord(s, displayedWord)
 }
 
 func handleComms(comm chan int) bool {
+	const speedInc = 500
 	handledMessage := false
 	messagesPending := true
 	for messagesPending {
@@ -53,9 +59,9 @@ func handleComms(comm chan int) bool {
 		case msg := <-comm:
 			switch msg {
 			case COMM_SPEED_INC:
-				delayMs -= 100 // TODO min
+				delayMs -= speedInc // TODO min
 			case COMM_SPEED_DEC:
-				delayMs += 100
+				delayMs += speedInc
 			}
 			handledMessage = true
 		default:
