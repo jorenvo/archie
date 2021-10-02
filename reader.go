@@ -197,11 +197,15 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 }
 
 func stripByteOrderMark(buf []byte) []byte {
-	if buf[0] == 0xef && buf[1] == 0xbb && buf[2] == 0xbf {
-		return buf[3:]
+	bom := [...]byte{0xef, 0xbb, 0xbf}
+
+	for i, bomByte := range bom {
+		if buf[i] != bomByte {
+			return buf
+		}
 	}
 
-	return buf
+	return buf[3:]
 }
 
 func mainReader(s tcell.Screen, comm chan int) {
