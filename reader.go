@@ -196,12 +196,21 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 	}
 }
 
+func stripByteOrderMark(buf []byte) []byte {
+	if buf[0] == 0xef && buf[1] == 0xbb && buf[2] == 0xbf {
+		return buf[3:]
+	}
+
+	return buf
+}
+
 func mainReader(s tcell.Screen, comm chan int) {
 	reader := bufio.NewReader(os.Stdin)
 	buf, err := io.ReadAll(reader)
 	if err != nil {
 		log.Fatalf("Could not read stdin: %v\n", err)
 	}
+	buf = stripByteOrderMark(buf)
 
 	text := string(buf)
 	speedRead(s, text, comm)
