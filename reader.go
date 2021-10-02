@@ -121,6 +121,8 @@ func handleComms(comm chan int) bool {
 				wordsPerMinute -= speedInc
 			case COMM_TOGGLE:
 				paused = !paused
+			case COMM_SINGLE_CHARACTER:
+				singleCharacter = !singleCharacter
 			}
 			handledMessage = true
 		default:

@@ -44,6 +44,8 @@ func main() {
 				comm <- COMM_SPEED_INC
 			case "-":
 				comm <- COMM_SPEED_DEC
+			case "w":
+				comm <- COMM_SINGLE_CHARACTER
 			case "q":
 				quit(s)
 			}
