@@ -19,8 +19,8 @@ var paused bool = true
 var wordsPerMinute int = 300
 var displayedWord string = ""
 var singleCharacter bool = false
-var currentPos int = 0
-var maxPos int = 0
+var currentByteIndex int = 0
+var maxByteIndex int = 0
 
 var spinner []string = []string{"⠁", "⠈", "⠐", "⠂"}
 var spinnerIndex int = 0
@@ -177,14 +177,13 @@ func wordBoundary(singleCharacter bool, r rune) bool {
 func speedRead(s tcell.Screen, text string, comm chan int) {
 	word := ""
 
-	// TODO this is probably too expensive, use bytes instead
-	maxPos = utf8.RuneCountInString(text)
+	maxByteIndex = len(text)
 	rune, _ := utf8.DecodeRuneInString(text[:4])
 	singleCharacter = guessSingleCharacter(rune)
 
-	for i, r := range text {
-		currentPos = i
-		if word != "" && wordBoundary(singleCharacter, r) {
+	for byteIndex, rune := range text {
+		currentByteIndex = byteIndex
+		if word != "" && wordBoundary(singleCharacter, rune) {
 			displayedWord = word
 			word = ""
 			spinnerInc()
@@ -192,8 +191,8 @@ func speedRead(s tcell.Screen, text string, comm chan int) {
 			wait(s, comm)
 		}
 
-		if !unicode.IsSpace(r) {
-			word = word + string(r)
+		if !unicode.IsSpace(rune) {
+			word = word + string(rune)
 		}
 	}
 }
