@@ -64,7 +64,7 @@ func statusProgress() string {
 		s += "⠿"
 	}
 
-	if double * 2 < completed {
+	if double*2 < completed {
 		s += "⠇"
 	}
 
@@ -80,10 +80,10 @@ func writeStatus(s tcell.Screen, word string) {
 	write(s, spinner[spinnerIndex], 0, height-1)
 
 	help := statusHelp()
-	write(s, help, width / 2 - utf8.RuneCountInString(help) / 2, height-2)
+	write(s, help, width/2-utf8.RuneCountInString(help)/2, height-2)
 
 	progress := statusProgress()
-	write(s, progress, width / 2 - utf8.RuneCountInString(progress) / 2, height-1)
+	write(s, progress, width/2-utf8.RuneCountInString(progress)/2, height-1)
 
 	write(s, word, width-utf8.RuneCountInString(word), height-1)
 }
