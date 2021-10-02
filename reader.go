@@ -103,7 +103,13 @@ func writeStatus(s tcell.Screen, word string) {
 
 func updateUI(s tcell.Screen) {
 	s.Clear()
-	writeStatus(s, fmt.Sprintf("%d words per min", wordsPerMinute))
+
+	unit := "words"
+	if singleCharacter {
+		unit = "characters"
+	}
+	writeStatus(s, fmt.Sprintf("%d %s per min", wordsPerMinute, unit))
+
 	writeWord(s, displayedWord)
 }
 
