@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/gdamore/tcell/v2"
+	"golang.org/x/text/width"
 	"io"
 	"log"
 	"math"
@@ -27,9 +28,20 @@ func spinnerInc() {
 	spinnerIndex = (spinnerIndex + 1) % len(spinner)
 }
 
+func runeWidth(r rune) int {
+	switch width.LookupRune(r).Kind() {
+	case width.EastAsianWide, width.EastAsianFullwidth:
+		return 2
+	default:
+		return 1
+	}
+}
+
 func write(s tcell.Screen, word string, col int, row int) {
-	for i, c := range word {
+	i := 0
+	for _, c := range word {
 		s.SetContent(col+i, row, c, nil, tcell.StyleDefault)
+		i += runeWidth(c)
 	}
 	s.Show()
 }
