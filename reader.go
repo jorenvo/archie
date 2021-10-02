@@ -66,10 +66,9 @@ func statusHelp() string {
 }
 
 func statusProgress() string {
-	// width: 16 * 2 = 32
-	const runeAmount int = 16
+	const runeAmount int = 32
 	const width int = runeAmount * 2
-	completed := int(math.Round(float64(currentPos) / float64(maxPos) * float64(width)))
+	completed := int(math.Round(float64(currentByteIndex) / float64(maxByteIndex) * float64(width)))
 
 	s := ""
 	double := completed / 2
