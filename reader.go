@@ -119,6 +119,8 @@ func handleComms(comm chan int) bool {
 	for messagesPending {
 		select {
 		case msg := <-comm:
+			// COM_RESIZE is not explicitly handled because
+			// caller calls updateUI() if handledMessage == true
 			switch msg {
 			case COMM_SPEED_INC:
 				wordsPerMinute += speedInc
