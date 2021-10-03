@@ -12,6 +12,15 @@ func quit(s tcell.Screen) {
 	os.Exit(0)
 }
 
+func debugFile() *os.File {
+	f, err := os.Create("/tmp/archie_debug.log")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	return f
+}
+
 func main() {
 	s, err := tcell.NewScreen()
 	if err != nil {
@@ -24,10 +33,16 @@ func main() {
 	comm := make(chan int, 64)
 	go mainReader(s, comm)
 
+	debugFile := debugFile()
+	defer debugFile.Close()
+
 	for {
 		s.Show()
 
 		ev := s.PollEvent()
+
+		fmt.Fprintf(debugFile, "%T\n", ev)
+
 		// EventResize events happen every time a Show happens. Avoid
 		// calling an expensive Sync here.
 		switch ev := ev.(type) {
