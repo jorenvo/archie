@@ -21,6 +21,7 @@ var displayedWord string = ""
 var singleCharacter bool = false
 var currentByteIndex int = 0
 var maxByteIndex int = 0
+var newWordsPerMinuteBuffer int = 0
 
 var spinner []string = []string{"⠁", "⠈", "⠐", "⠂"}
 var spinnerIndex int = 0
@@ -109,7 +110,11 @@ func updateUI(s tcell.Screen) {
 	}
 	writeStatus(s, fmt.Sprintf("%d %s per min", wordsPerMinute, unit))
 
-	writeWord(s, displayedWord)
+	if newWordsPerMinuteBuffer == 0 {
+		writeWord(s, displayedWord)
+	} else {
+		writeWord(s, fmt.Sprintf("New %s per min: %d", unit, newWordsPerMinuteBuffer))
+	}
 }
 
 func handleComms(comm chan int) bool {
@@ -121,15 +126,25 @@ func handleComms(comm chan int) bool {
 		case msg := <-comm:
 			// COM_RESIZE is not explicitly handled because
 			// caller calls updateUI() if handledMessage == true
-			switch msg {
-			case COMM_SPEED_INC:
+			switch {
+			case msg == COMM_SPEED_INC:
 				wordsPerMinute += speedInc
-			case COMM_SPEED_DEC:
+			case msg == COMM_SPEED_DEC:
 				wordsPerMinute -= speedInc
-			case COMM_TOGGLE:
+			case msg == COMM_TOGGLE:
 				paused = !paused
-			case COMM_SINGLE_CHARACTER:
+			case msg == COMM_SINGLE_CHARACTER:
 				singleCharacter = !singleCharacter
+			case msg >= COMM_DIGIT_0 && msg <= COMM_DIGIT_9:
+				newWordsPerMinuteBuffer =
+					newWordsPerMinuteBuffer * 10 + msg - COMM_DIGIT_0
+			case msg == COMM_BACKSPACE:
+				newWordsPerMinuteBuffer /= 10
+			case msg == COMM_CONFIRM:
+				if newWordsPerMinuteBuffer != 0 {
+					wordsPerMinute = newWordsPerMinuteBuffer
+					newWordsPerMinuteBuffer = 0
+				}
 			}
 			handledMessage = true
 		default:
