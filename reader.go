@@ -133,6 +133,7 @@ func handleComms(comm chan int) bool {
 			case msg >= COMM_DIGIT_0 && msg <= COMM_DIGIT_9:
 				newWordsPerMinuteBuffer =
 					newWordsPerMinuteBuffer*10 + msg - COMM_DIGIT_0
+				paused = true
 			case msg == COMM_BACKSPACE:
 				newWordsPerMinuteBuffer /= 10
 			case msg == COMM_CONFIRM:
