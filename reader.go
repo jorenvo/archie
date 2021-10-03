@@ -180,6 +180,7 @@ func wait(s tcell.Screen, comm chan int) {
 
 		if handleComms(comm) {
 			updateUI(s)
+			remainingMs = getDelayMs()
 		}
 
 		time.Sleep(1_000 / Hz * time.Millisecond)
