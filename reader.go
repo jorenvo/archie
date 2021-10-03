@@ -123,9 +123,30 @@ func handleComms(comm chan int) bool {
 	messagesPending := true
 	for messagesPending {
 		select {
+		// COM_RESIZE is not explicitly handled because
+		// caller calls updateUI() if handledMessage == true
 		case msg := <-comm:
-			// COM_RESIZE is not explicitly handled because
-			// caller calls updateUI() if handledMessage == true
+			handledMessage = true
+
+			// Comms that are always handled (e.g. wpm input)
+			switch {
+			case msg >= COMM_DIGIT_0 && msg <= COMM_DIGIT_9:
+				newWordsPerMinuteBuffer =
+					newWordsPerMinuteBuffer*10 + msg - COMM_DIGIT_0
+			case msg == COMM_BACKSPACE:
+				newWordsPerMinuteBuffer /= 10
+			case msg == COMM_CONFIRM:
+				if newWordsPerMinuteBuffer != 0 {
+					wordsPerMinute = newWordsPerMinuteBuffer
+					newWordsPerMinuteBuffer = 0
+				}
+			}
+
+			if newWordsPerMinuteBuffer != 0 {
+				break
+			}
+
+			// Comms only handled when not inputting wpm
 			switch {
 			case msg == COMM_SPEED_INC:
 				wordsPerMinute += speedInc
@@ -135,18 +156,7 @@ func handleComms(comm chan int) bool {
 				paused = !paused
 			case msg == COMM_SINGLE_CHARACTER:
 				singleCharacter = !singleCharacter
-			case msg >= COMM_DIGIT_0 && msg <= COMM_DIGIT_9:
-				newWordsPerMinuteBuffer =
-					newWordsPerMinuteBuffer * 10 + msg - COMM_DIGIT_0
-			case msg == COMM_BACKSPACE:
-				newWordsPerMinuteBuffer /= 10
-			case msg == COMM_CONFIRM:
-				if newWordsPerMinuteBuffer != 0 {
-					wordsPerMinute = newWordsPerMinuteBuffer
-					newWordsPerMinuteBuffer = 0
-				}
 			}
-			handledMessage = true
 		default:
 			messagesPending = false
 		}
