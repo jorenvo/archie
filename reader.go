@@ -160,8 +160,13 @@ func handleComms(comm chan int) bool {
 			case COMM_SINGLE_CHARACTER:
 				singleCharacter = !singleCharacter
 			case COMM_SENTENCE_BACKWARD:
-				currentByteIndex = strings.LastIndexAny(text[:currentByteIndex], sentenceBreaks)
-				displayedWord = nextWord()
+				previousBreak := strings.LastIndexAny(text[:currentByteIndex], sentenceBreaks)
+				if previousBreak != -1 {
+					currentByteIndex = previousBreak
+					_, offset := utf8.DecodeRuneInString(text[currentByteIndex:])
+					currentByteIndex += offset
+					displayedWord = nextWord()
+				}
 			}
 		default:
 			messagesPending = false
