@@ -133,6 +133,10 @@ func skipPastCharacter(param skipPastCharacterParam) {
 		// with an invalid encoding in the beginning but I think that
 		// should be fine.
 		start := currentByteIndex - 4
+		if start < 0 {
+			return
+		}
+
 		for {
 			_, offset := utf8.DecodeRuneInString(text[start:])
 			if start+offset == currentByteIndex {
