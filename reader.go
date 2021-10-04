@@ -209,7 +209,6 @@ func wordBoundary(singleCharacter bool, r rune) bool {
 func speedRead(s tcell.Screen, comm chan int) {
 	word := ""
 
-	maxByteIndex = len(text)
 	rune, _ := utf8.DecodeRuneInString(text[:4])
 	singleCharacter = guessSingleCharacter(rune)
 
@@ -250,5 +249,7 @@ func mainReader(s tcell.Screen, comm chan int) {
 	buf = stripByteOrderMark(buf)
 
 	text = string(buf)
+	maxByteIndex = len(text)
+
 	speedRead(s, comm)
 }
