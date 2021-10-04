@@ -119,6 +119,39 @@ func updateUI(s tcell.Screen) {
 	}
 }
 
+type skipPastCharacterParam bool
+
+const (
+	Backwards skipPastCharacterParam = true
+	Forwards                         = false
+)
+
+func skipPastCharacter(param skipPastCharacterParam) {
+	if param == Backwards {
+		// Go backwards 4 bytes and go forward until we reach our original
+		// pos to figure out the character right before it. We may end up
+		// with an invalid encoding in the beginning but I think that
+		// should be fine.
+		start := currentByteIndex - 4
+		for {
+			_, offset := utf8.DecodeRuneInString(text[start:])
+			if start+offset == currentByteIndex {
+				currentByteIndex = start
+				return
+			}
+
+			start += offset
+
+			if start > currentByteIndex {
+				log.Fatalf("Went past character we started at")
+			}
+		}
+	} else {
+		_, offset := utf8.DecodeRuneInString(text[currentByteIndex:])
+		currentByteIndex += offset
+	}
+}
+
 func handleComms(comm chan int) bool {
 	const speedInc = 5
 	handledMessage := false
@@ -160,13 +193,35 @@ func handleComms(comm chan int) bool {
 			case COMM_SINGLE_CHARACTER:
 				singleCharacter = !singleCharacter
 			case COMM_SENTENCE_BACKWARD:
-				previousBreak := strings.LastIndexAny(text[:currentByteIndex], sentenceBreaks)
-				if previousBreak != -1 {
+				skippedCharactersBackwards := 0
+				startingByteIndex := currentByteIndex
+				for startingByteIndex == currentByteIndex {
+					for i := 0; i < skippedCharactersBackwards; i++ {
+						skipPastCharacter(Backwards)
+					}
+					skippedCharactersBackwards++
+
+					previousBreak := strings.LastIndexAny(text[:currentByteIndex], sentenceBreaks)
+					if previousBreak == -1 {
+						break
+					}
 					currentByteIndex = previousBreak
-					_, offset := utf8.DecodeRuneInString(text[currentByteIndex:])
-					currentByteIndex += offset
+					skipPastCharacter(Forwards)
 					displayedWord = nextWord()
 				}
+			case COMM_SENTENCE_FORWARD:
+				// Skip this character in case it's a period
+				skipPastCharacter(Forwards)
+				nextBreak := strings.IndexAny(text[currentByteIndex:], sentenceBreaks)
+				if nextBreak == -1 {
+					break
+				}
+
+				// += because IndexAny ran on substring
+				currentByteIndex += nextBreak
+
+				skipPastCharacter(Forwards)
+				displayedWord = nextWord()
 			}
 		default:
 			messagesPending = false
