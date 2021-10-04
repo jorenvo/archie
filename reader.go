@@ -207,10 +207,13 @@ func handleComms(comm chan int) bool {
 
 					previousBreak := strings.LastIndexAny(text[:currentByteIndex], sentenceBreaks)
 					if previousBreak == -1 {
-						break
+						// No break found, go back to the beginning of file
+						currentByteIndex = 0
+					} else {
+						currentByteIndex = previousBreak
+						skipPastCharacter(Forwards)
 					}
-					currentByteIndex = previousBreak
-					skipPastCharacter(Forwards)
+
 					displayedWord = nextWord()
 				}
 			case COMM_SENTENCE_FORWARD:
