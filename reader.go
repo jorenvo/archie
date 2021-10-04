@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 )
 
-// TODO global variables?
+// TODO: global variables?
 var text string = ""
 var paused bool = true
 var wordsPerMinute int = 300
@@ -272,7 +272,8 @@ func guessSingleCharacter(r rune) bool {
 }
 
 func wordBoundary(singleCharacter bool, r rune) bool {
-	return singleCharacter || unicode.IsSpace(r)
+	// TODO: IsPunct will include quotes
+	return (singleCharacter && !unicode.IsPunct(r)) || unicode.IsSpace(r)
 }
 
 func nextWord() string {
