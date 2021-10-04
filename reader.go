@@ -9,12 +9,14 @@ import (
 	"log"
 	"math"
 	"os"
+	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
 )
 
 // TODO global variables?
+var text string = ""
 var paused bool = true
 var wordsPerMinute int = 300
 var displayedWord string = ""
@@ -148,15 +150,17 @@ func handleComms(comm chan int) bool {
 			}
 
 			// Comms only handled when not inputting wpm
-			switch {
-			case msg == COMM_SPEED_INC:
+			switch msg {
+			case COMM_SPEED_INC:
 				wordsPerMinute += speedInc
-			case msg == COMM_SPEED_DEC:
+			case COMM_SPEED_DEC:
 				wordsPerMinute -= speedInc
-			case msg == COMM_TOGGLE:
+			case COMM_TOGGLE:
 				paused = !paused
-			case msg == COMM_SINGLE_CHARACTER:
+			case COMM_SINGLE_CHARACTER:
 				singleCharacter = !singleCharacter
+			case COMM_SENTENCE_BACKWARD:
+				currentByteIndex = strings.LastIndexAny(text[:currentByteIndex], sentenceBreaks)
 			}
 		default:
 			messagesPending = false
@@ -202,7 +206,7 @@ func wordBoundary(singleCharacter bool, r rune) bool {
 	return singleCharacter || unicode.IsSpace(r)
 }
 
-func speedRead(s tcell.Screen, text string, comm chan int) {
+func speedRead(s tcell.Screen, comm chan int) {
 	word := ""
 
 	maxByteIndex = len(text)
@@ -245,6 +249,6 @@ func mainReader(s tcell.Screen, comm chan int) {
 	}
 	buf = stripByteOrderMark(buf)
 
-	text := string(buf)
-	speedRead(s, text, comm)
+	text = string(buf)
+	speedRead(s, comm)
 }

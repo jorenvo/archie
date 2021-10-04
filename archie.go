@@ -60,6 +60,12 @@ func main() {
 			case tcell.KeyBackspace, tcell.KeyBackspace2:
 				comm <- COMM_BACKSPACE
 				break
+			case tcell.KeyLeft:
+				comm <- COMM_SENTENCE_BACKWARD
+				break
+			case tcell.KeyRight:
+				comm <- COMM_SENTENCE_FORWARD
+				break
 			}
 
 			rune := fmt.Sprintf("%c", ev.Rune())
