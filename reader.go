@@ -209,12 +209,13 @@ func handleComms(comm chan int) bool {
 					if previousBreak == -1 {
 						// No break found, go back to the beginning of file
 						currentByteIndex = 0
+						displayedWord = nextWord()
+						break
 					} else {
 						currentByteIndex = previousBreak
 						skipPastCharacter(Forwards)
+						displayedWord = nextWord()
 					}
-
-					displayedWord = nextWord()
 				}
 			case COMM_SENTENCE_FORWARD:
 				// Skip this character in case it's a period
