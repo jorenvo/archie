@@ -6,3 +6,4 @@ TODO
 - implement search that shows context
 - switch text to be an array of runes instead
     skipPastCharacter and everything else will be much simpler
+- pause longer on newline
