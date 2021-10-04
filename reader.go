@@ -161,6 +161,7 @@ func handleComms(comm chan int) bool {
 				singleCharacter = !singleCharacter
 			case COMM_SENTENCE_BACKWARD:
 				currentByteIndex = strings.LastIndexAny(text[:currentByteIndex], sentenceBreaks)
+				displayedWord = nextWord()
 			}
 		default:
 			messagesPending = false
@@ -206,25 +207,33 @@ func wordBoundary(singleCharacter bool, r rune) bool {
 	return singleCharacter || unicode.IsSpace(r)
 }
 
-func speedRead(s tcell.Screen, comm chan int) {
+func nextWord() string {
 	word := ""
+	startByteIndex := currentByteIndex
 
-	rune, _ := utf8.DecodeRuneInString(text[:4])
-	singleCharacter = guessSingleCharacter(rune)
-
-	for byteIndex, rune := range text {
-		currentByteIndex = byteIndex
+	for byteIndex, rune := range text[startByteIndex:] {
+		currentByteIndex = startByteIndex + byteIndex
 		if word != "" && wordBoundary(singleCharacter, rune) {
-			displayedWord = word
-			word = ""
-			spinnerInc()
-			updateUI(s)
-			wait(s, comm)
+			return word
 		}
 
 		if !unicode.IsSpace(rune) {
 			word = word + string(rune)
 		}
+	}
+
+	return ""
+}
+
+func speedRead(s tcell.Screen, comm chan int) {
+	rune, _ := utf8.DecodeRuneInString(text[:4])
+	singleCharacter = guessSingleCharacter(rune)
+
+	for word := nextWord(); word != ""; word = nextWord() {
+		displayedWord = word
+		spinnerInc()
+		updateUI(s)
+		wait(s, comm)
 	}
 }
 
