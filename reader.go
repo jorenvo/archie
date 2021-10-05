@@ -15,16 +15,18 @@ import (
 	"unicode/utf8"
 )
 
-// TODO: global variables?
-var text string = ""
-var paused bool = true
-var wordsPerMinute int = 300
-var displayedWord string = ""
-var singleCharacter bool = false
-var currentByteIndex int = 0
-var maxByteIndex int = 0
-var newWordsPerMinuteBuffer int = 0
+type reader struct {
+	text string
+	paused bool
+	wordsPerMinute int
+	displayedWord string
+	singleCharacter bool
+	currentByteIndex int
+	maxByteIndex int
+	newWordsPerMinuteBuffer int
+}
 
+// TODO: global variables?
 var spinner []string = []string{"⠁", "⠈", "⠐", "⠂"}
 var spinnerIndex int = 0
 
@@ -32,8 +34,8 @@ func spinnerInc() {
 	spinnerIndex = (spinnerIndex + 1) % len(spinner)
 }
 
-func runeWidth(r rune) int {
-	switch width.LookupRune(r).Kind() {
+func (r *reader) runeWidth(c rune) int {
+	switch width.LookupRune(c).Kind() {
 	case width.EastAsianWide, width.EastAsianFullwidth:
 		return 2
 	default:
@@ -41,18 +43,18 @@ func runeWidth(r rune) int {
 	}
 }
 
-func write(s tcell.Screen, word string, col int, row int) {
+func (r *reader) write(s tcell.Screen, word string, col int, row int) {
 	i := 0
 	for _, c := range word {
 		s.SetContent(col+i, row, c, nil, tcell.StyleDefault)
-		i += runeWidth(c)
+		i += r.runeWidth(c)
 	}
 	s.Show()
 }
 
-func writeWord(s tcell.Screen, word string) {
+func (r *reader) writeWord(s tcell.Screen, word string) {
 	width, height := s.Size()
-	write(
+	r.write(
 		s,
 		word,
 		width/2-utf8.RuneCountInString(word)/2,
@@ -60,18 +62,18 @@ func writeWord(s tcell.Screen, word string) {
 	)
 }
 
-func statusHelp() string {
-	if paused {
+func (r *reader) statusHelp() string {
+	if r.paused {
 		return "[Press SPC to start.]"
 	} else {
 		return ""
 	}
 }
 
-func statusProgress() string {
+func (r *reader) statusProgress() string {
 	const runeAmount int = 32
 	const width int = runeAmount * 2
-	completed := int(math.Round(float64(currentByteIndex) / float64(maxByteIndex) * float64(width)))
+	completed := int(math.Round(float64(r.currentByteIndex) / float64(r.maxByteIndex) * float64(width)))
 
 	s := ""
 	double := completed / 2
@@ -90,32 +92,32 @@ func statusProgress() string {
 	return s
 }
 
-func writeStatus(s tcell.Screen, word string) {
+func (r *reader) writeStatus(s tcell.Screen, word string) {
 	width, height := s.Size()
-	write(s, spinner[spinnerIndex], 0, height-1)
+	r.write(s, spinner[spinnerIndex], 0, height-1)
 
-	help := statusHelp()
-	write(s, help, width/2-utf8.RuneCountInString(help)/2, height-2)
+	help := r.statusHelp()
+	r.write(s, help, width/2-utf8.RuneCountInString(help)/2, height-2)
 
-	progress := statusProgress()
-	write(s, progress, width/2-utf8.RuneCountInString(progress)/2, height-1)
+	progress := r.statusProgress()
+	r.write(s, progress, width/2-utf8.RuneCountInString(progress)/2, height-1)
 
-	write(s, word, width-utf8.RuneCountInString(word), height-1)
+	r.write(s, word, width-utf8.RuneCountInString(word), height-1)
 }
 
-func updateUI(s tcell.Screen) {
+func (r *reader) updateUI(s tcell.Screen) {
 	s.Clear()
 
 	unit := "words"
-	if singleCharacter {
+	if r.singleCharacter {
 		unit = "characters"
 	}
-	writeStatus(s, fmt.Sprintf("%d %s per min", wordsPerMinute, unit))
+	r.writeStatus(s, fmt.Sprintf("%d %s per min", r.wordsPerMinute, unit))
 
-	if newWordsPerMinuteBuffer == 0 {
-		writeWord(s, displayedWord)
+	if r.newWordsPerMinuteBuffer == 0 {
+		r.writeWord(s, r.displayedWord)
 	} else {
-		writeWord(s, fmt.Sprintf("New %s per min: %d", unit, newWordsPerMinuteBuffer))
+		r.writeWord(s, fmt.Sprintf("New %s per min: %d", unit, r.newWordsPerMinuteBuffer))
 	}
 }
 
@@ -126,37 +128,37 @@ const (
 	Forwards                         = false
 )
 
-func skipPastCharacter(param skipPastCharacterParam) {
+func (r *reader) skipPastCharacter(param skipPastCharacterParam) {
 	if param == Backwards {
 		// Go backwards 4 bytes and go forward until we reach our original
 		// pos to figure out the character right before it. We may end up
 		// with an invalid encoding in the beginning but I think that
 		// should be fine.
-		start := currentByteIndex - 4
+		start := r.currentByteIndex - 4
 		if start < 0 {
 			return
 		}
 
 		for {
-			_, offset := utf8.DecodeRuneInString(text[start:])
-			if start+offset == currentByteIndex {
-				currentByteIndex = start
+			_, offset := utf8.DecodeRuneInString(r.text[start:])
+			if start+offset == r.currentByteIndex {
+				r.currentByteIndex = start
 				return
 			}
 
 			start += offset
 
-			if start > currentByteIndex {
+			if start > r.currentByteIndex {
 				log.Fatalf("Went past character we started at")
 			}
 		}
 	} else {
-		_, offset := utf8.DecodeRuneInString(text[currentByteIndex:])
-		currentByteIndex += offset
+		_, offset := utf8.DecodeRuneInString(r.text[r.currentByteIndex:])
+		r.currentByteIndex += offset
 	}
 }
 
-func handleComms(comm chan int) bool {
+func (r *reader) handleComms(comm chan int) bool {
 	const speedInc = 5
 	handledMessage := false
 	messagesPending := true
@@ -170,66 +172,66 @@ func handleComms(comm chan int) bool {
 			// Comms that are always handled (e.g. wpm input)
 			switch {
 			case msg >= COMM_DIGIT_0 && msg <= COMM_DIGIT_9:
-				newWordsPerMinuteBuffer =
-					newWordsPerMinuteBuffer*10 + msg - COMM_DIGIT_0
-				paused = true
+				r.newWordsPerMinuteBuffer =
+					r.newWordsPerMinuteBuffer*10 + msg - COMM_DIGIT_0
+				r.paused = true
 			case msg == COMM_BACKSPACE:
-				newWordsPerMinuteBuffer /= 10
+				r.newWordsPerMinuteBuffer /= 10
 			case msg == COMM_CONFIRM:
-				if newWordsPerMinuteBuffer != 0 {
-					wordsPerMinute = newWordsPerMinuteBuffer
-					newWordsPerMinuteBuffer = 0
+				if r.newWordsPerMinuteBuffer != 0 {
+					r.wordsPerMinute = r.newWordsPerMinuteBuffer
+					r.newWordsPerMinuteBuffer = 0
 				}
 			}
 
-			if newWordsPerMinuteBuffer != 0 {
+			if r.newWordsPerMinuteBuffer != 0 {
 				break
 			}
 
 			// Comms only handled when not inputting wpm
 			switch msg {
 			case COMM_SPEED_INC:
-				wordsPerMinute += speedInc
+				r.wordsPerMinute += speedInc
 			case COMM_SPEED_DEC:
-				wordsPerMinute -= speedInc
+				r.wordsPerMinute -= speedInc
 			case COMM_TOGGLE:
-				paused = !paused
+				r.paused = !r.paused
 			case COMM_SINGLE_CHARACTER:
-				singleCharacter = !singleCharacter
+				r.singleCharacter = !r.singleCharacter
 			case COMM_SENTENCE_BACKWARD:
 				skippedCharactersBackwards := 0
-				startingByteIndex := currentByteIndex
-				for startingByteIndex == currentByteIndex {
+				startingByteIndex := r.currentByteIndex
+				for startingByteIndex == r.currentByteIndex {
 					for i := 0; i < skippedCharactersBackwards; i++ {
-						skipPastCharacter(Backwards)
+						r.skipPastCharacter(Backwards)
 					}
 					skippedCharactersBackwards++
 
-					previousBreak := strings.LastIndexAny(text[:currentByteIndex], sentenceBreaks)
+					previousBreak := strings.LastIndexAny(r.text[:r.currentByteIndex], sentenceBreaks)
 					if previousBreak == -1 {
 						// No break found, go back to the beginning of file
-						currentByteIndex = 0
-						displayedWord = nextWord()
+						r.currentByteIndex = 0
+						r.displayedWord = r.nextWord()
 						break
 					} else {
-						currentByteIndex = previousBreak
-						skipPastCharacter(Forwards)
-						displayedWord = nextWord()
+						r.currentByteIndex = previousBreak
+						r.skipPastCharacter(Forwards)
+						r.displayedWord = r.nextWord()
 					}
 				}
 			case COMM_SENTENCE_FORWARD:
 				// Skip this character in case it's a period
-				skipPastCharacter(Forwards)
-				nextBreak := strings.IndexAny(text[currentByteIndex:], sentenceBreaks)
+				r.skipPastCharacter(Forwards)
+				nextBreak := strings.IndexAny(r.text[r.currentByteIndex:], sentenceBreaks)
 				if nextBreak == -1 {
 					break
 				}
 
 				// += because IndexAny ran on substring
-				currentByteIndex += nextBreak
+				r.currentByteIndex += nextBreak
 
-				skipPastCharacter(Forwards)
-				displayedWord = nextWord()
+				r.skipPastCharacter(Forwards)
+				r.displayedWord = r.nextWord()
 			}
 		default:
 			messagesPending = false
@@ -239,27 +241,27 @@ func handleComms(comm chan int) bool {
 	return handledMessage
 }
 
-func getDelayMs() int64 {
-	return int64(math.Round(1_000 / (float64(wordsPerMinute) / float64(60))))
+func (r *reader) getDelayMs() int64 {
+	return int64(math.Round(1_000 / (float64(r.wordsPerMinute) / float64(60))))
 }
 
 // Waits but still handles comms at 60 Hz
-func wait(s tcell.Screen, comm chan int) {
+func (r *reader) wait(s tcell.Screen, comm chan int) {
 	const Hz = 60
-	remainingMs := getDelayMs()
+	remainingMs := r.getDelayMs()
 
 	for remainingMs > 0 {
 		prevTime := time.Now().UnixMilli()
 
-		if handleComms(comm) {
-			updateUI(s)
-			remainingMs = getDelayMs()
+		if r.handleComms(comm) {
+			r.updateUI(s)
+			remainingMs = r.getDelayMs()
 		}
 
 		time.Sleep(1_000 / Hz * time.Millisecond)
 
 		// Immediately exit this wait when unpausing
-		if paused {
+		if r.paused {
 			prevTime = 0
 		} else {
 			remainingMs -= time.Now().UnixMilli() - prevTime
@@ -267,22 +269,22 @@ func wait(s tcell.Screen, comm chan int) {
 	}
 }
 
-func guessSingleCharacter(r rune) bool {
-	return runeWidth(r) == 2
+func (r *reader) guessSingleCharacter(c rune) bool {
+	return r.runeWidth(c) == 2
 }
 
-func wordBoundary(singleCharacter bool, r rune) bool {
+func (r *reader) wordBoundary(singleCharacter bool, c rune) bool {
 	// TODO: IsPunct will include quotes
-	return (singleCharacter && !unicode.IsPunct(r)) || unicode.IsSpace(r)
+	return (r.singleCharacter && !unicode.IsPunct(c)) || unicode.IsSpace(c)
 }
 
-func nextWord() string {
+func (r *reader) nextWord() string {
 	word := ""
-	startByteIndex := currentByteIndex
+	startByteIndex := r.currentByteIndex
 
-	for byteIndex, rune := range text[startByteIndex:] {
-		currentByteIndex = startByteIndex + byteIndex
-		if word != "" && wordBoundary(singleCharacter, rune) {
+	for byteIndex, rune := range r.text[startByteIndex:] {
+		r.currentByteIndex = startByteIndex + byteIndex
+		if word != "" && r.wordBoundary(r.singleCharacter, rune) {
 			return word
 		}
 
@@ -294,15 +296,15 @@ func nextWord() string {
 	return ""
 }
 
-func speedRead(s tcell.Screen, comm chan int) {
-	rune, _ := utf8.DecodeRuneInString(text[:4])
-	singleCharacter = guessSingleCharacter(rune)
+func (r *reader) read(s tcell.Screen, comm chan int) {
+	rune, _ := utf8.DecodeRuneInString(r.text[:4])
+	r.singleCharacter = r.guessSingleCharacter(rune)
 
-	for word := nextWord(); word != ""; word = nextWord() {
-		displayedWord = word
+	for word := r.nextWord(); word != ""; word = r.nextWord() {
+		r.displayedWord = word
 		spinnerInc()
-		updateUI(s)
-		wait(s, comm)
+		r.updateUI(s)
+		r.wait(s, comm)
 	}
 }
 
@@ -318,16 +320,19 @@ func stripByteOrderMark(buf []byte) []byte {
 	return buf[3:]
 }
 
-func mainReader(s tcell.Screen, comm chan int) {
-	reader := bufio.NewReader(os.Stdin)
-	buf, err := io.ReadAll(reader)
+func startReader(s tcell.Screen, comm chan int) {
+	fileReader := bufio.NewReader(os.Stdin)
+	buf, err := io.ReadAll(fileReader)
 	if err != nil {
 		log.Fatalf("Could not read stdin: %v\n", err)
 	}
 	buf = stripByteOrderMark(buf)
 
-	text = string(buf)
-	maxByteIndex = len(text)
+	reader := reader{}
+	reader.text = string(buf)
+	reader.paused = true
+	reader.wordsPerMinute = 300
+	reader.maxByteIndex = len(reader.text)
 
-	speedRead(s, comm)
+	reader.read(s, comm)
 }

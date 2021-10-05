@@ -31,7 +31,7 @@ func main() {
 	}
 
 	comm := make(chan int, 64)
-	go mainReader(s, comm)
+	go startReader(s, comm)
 
 	debugFile := debugFile()
 	defer debugFile.Close()
