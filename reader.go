@@ -19,8 +19,8 @@ type reader struct {
 	displayedWord           string
 	debug                   string
 	singleCharacter         bool
-	currentByteIndex        int // TODO: rename now we're using runes
-	maxByteIndex            int // TODO: rename now we're using runes
+	currentRuneIndex        int
+	maxRuneIndex            int
 	newWordsPerMinuteBuffer int
 }
 
@@ -36,8 +36,8 @@ func (r *reader) updateUI() {
 	r.screen.writeStatus(
 		fmt.Sprintf("%d %s per min", r.wordsPerMinute, unit),
 		r.paused,
-		r.currentByteIndex,
-		r.maxByteIndex,
+		r.currentRuneIndex,
+		r.maxRuneIndex,
 	)
 
 	if r.newWordsPerMinuteBuffer == 0 {
@@ -96,40 +96,40 @@ func (r *reader) handleComms(comm chan int) bool {
 				r.singleCharacter = !r.singleCharacter
 			case COMM_SENTENCE_BACKWARD:
 				skippedCharactersBackwards := 0
-				startingByteIndex := r.currentByteIndex
-				for startingByteIndex == r.currentByteIndex {
+				startingByteIndex := r.currentRuneIndex
+				for startingByteIndex == r.currentRuneIndex {
 					for i := 0; i < skippedCharactersBackwards; i++ {
-						if r.currentByteIndex > 0 {
-							r.currentByteIndex--
+						if r.currentRuneIndex > 0 {
+							r.currentRuneIndex--
 						}
 					}
 					skippedCharactersBackwards++
 
-					previousBreak := lastIndexAnyRune(r.text[:r.currentByteIndex], sentenceBreaks)
-					r.debug = fmt.Sprintf("byte index at: %d, previous break at: %d", r.currentByteIndex, previousBreak)
+					previousBreak := lastIndexAnyRune(r.text[:r.currentRuneIndex], sentenceBreaks)
+					r.debug = fmt.Sprintf("byte index at: %d, previous break at: %d", r.currentRuneIndex, previousBreak)
 					if previousBreak == -1 {
 						// No break found, go back to the beginning of file
-						r.currentByteIndex = 0
+						r.currentRuneIndex = 0
 						r.displayedWord = r.nextWord()
 						break
 					} else {
-						r.currentByteIndex = previousBreak
-						r.currentByteIndex++
+						r.currentRuneIndex = previousBreak
+						r.currentRuneIndex++
 						r.displayedWord = r.nextWord()
 					}
 				}
 			case COMM_SENTENCE_FORWARD:
 				// Skip this character in case it's a period
-				r.currentByteIndex++
-				nextBreak := indexAnyRune(r.text[r.currentByteIndex:], sentenceBreaks)
+				r.currentRuneIndex++
+				nextBreak := indexAnyRune(r.text[r.currentRuneIndex:], sentenceBreaks)
 				if nextBreak == -1 {
 					break
 				}
 
 				// += because IndexAny ran on substring
-				r.currentByteIndex += nextBreak
+				r.currentRuneIndex += nextBreak
 
-				r.currentByteIndex++
+				r.currentRuneIndex++
 				r.displayedWord = r.nextWord()
 			}
 		default:
@@ -179,10 +179,10 @@ func (r *reader) wordBoundary(singleCharacter bool, c rune) bool {
 
 func (r *reader) nextWord() string {
 	word := ""
-	startByteIndex := r.currentByteIndex
+	startByteIndex := r.currentRuneIndex
 
 	for byteIndex, rune := range r.text[startByteIndex:] {
-		r.currentByteIndex = startByteIndex + byteIndex
+		r.currentRuneIndex = startByteIndex + byteIndex
 		if word != "" && r.wordBoundary(r.singleCharacter, rune) {
 			return word
 		}
@@ -231,7 +231,7 @@ func startReader(s screen, comm chan int) {
 	reader.text = []rune(string(buf))
 	reader.paused = true
 	reader.wordsPerMinute = 300
-	reader.maxByteIndex = len(reader.text)
+	reader.maxRuneIndex = len(reader.text)
 
 	reader.read(comm)
 }
