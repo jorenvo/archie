@@ -3,8 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/gdamore/tcell/v2"
-	"golang.org/x/text/width"
 	"io"
 	"log"
 	"math"
@@ -16,6 +14,7 @@ import (
 )
 
 type reader struct {
+	screen screen
 	text string
 	paused bool
 	wordsPerMinute int
@@ -26,98 +25,24 @@ type reader struct {
 	newWordsPerMinuteBuffer int
 }
 
-// TODO: global variables?
-var spinner []string = []string{"⠁", "⠈", "⠐", "⠂"}
-var spinnerIndex int = 0
-
-func spinnerInc() {
-	spinnerIndex = (spinnerIndex + 1) % len(spinner)
-}
-
-func (r *reader) runeWidth(c rune) int {
-	switch width.LookupRune(c).Kind() {
-	case width.EastAsianWide, width.EastAsianFullwidth:
-		return 2
-	default:
-		return 1
-	}
-}
-
-func (r *reader) write(s tcell.Screen, word string, col int, row int) {
-	i := 0
-	for _, c := range word {
-		s.SetContent(col+i, row, c, nil, tcell.StyleDefault)
-		i += r.runeWidth(c)
-	}
-	s.Show()
-}
-
-func (r *reader) writeWord(s tcell.Screen, word string) {
-	width, height := s.Size()
-	r.write(
-		s,
-		word,
-		width/2-utf8.RuneCountInString(word)/2,
-		height/2,
-	)
-}
-
-func (r *reader) statusHelp() string {
-	if r.paused {
-		return "[Press SPC to start.]"
-	} else {
-		return ""
-	}
-}
-
-func (r *reader) statusProgress() string {
-	const runeAmount int = 32
-	const width int = runeAmount * 2
-	completed := int(math.Round(float64(r.currentByteIndex) / float64(r.maxByteIndex) * float64(width)))
-
-	s := ""
-	double := completed / 2
-	for i := 0; i < double; i++ {
-		s += "⠿"
-	}
-
-	if double*2 < completed {
-		s += "⠇"
-	}
-
-	for utf8.RuneCountInString(s) < runeAmount {
-		s += " "
-	}
-
-	return s
-}
-
-func (r *reader) writeStatus(s tcell.Screen, word string) {
-	width, height := s.Size()
-	r.write(s, spinner[spinnerIndex], 0, height-1)
-
-	help := r.statusHelp()
-	r.write(s, help, width/2-utf8.RuneCountInString(help)/2, height-2)
-
-	progress := r.statusProgress()
-	r.write(s, progress, width/2-utf8.RuneCountInString(progress)/2, height-1)
-
-	r.write(s, word, width-utf8.RuneCountInString(word), height-1)
-}
-
-func (r *reader) updateUI(s tcell.Screen) {
-	s.Clear()
+func (r *reader) updateUI() {
+	r.screen.clear()
 
 	unit := "words"
 	if r.singleCharacter {
 		unit = "characters"
 	}
-	r.writeStatus(s, fmt.Sprintf("%d %s per min", r.wordsPerMinute, unit))
+	r.screen.writeStatus(
+		fmt.Sprintf("%d %s per min", r.wordsPerMinute, unit),
+		r.paused,
+		r.currentByteIndex,
+		r.maxByteIndex,
+	)
 
 	if r.newWordsPerMinuteBuffer == 0 {
-		r.writeWord(s, r.displayedWord)
+		r.screen.writeWord(r.displayedWord)
 	} else {
-		r.writeWord(s, fmt.Sprintf("New %s per min: %d", unit, r.newWordsPerMinuteBuffer))
+		r.screen.writeWord(fmt.Sprintf("New %s per min: %d", unit, r.newWordsPerMinuteBuffer))
 	}
 }
 
@@ -246,7 +171,7 @@ func (r *reader) getDelayMs() int64 {
 }
 
 // Waits but still handles comms at 60 Hz
-func (r *reader) wait(s tcell.Screen, comm chan int) {
+func (r *reader) wait(comm chan int) {
 	const Hz = 60
 	remainingMs := r.getDelayMs()
 
@@ -254,7 +179,7 @@ func (r *reader) wait(s tcell.Screen, comm chan int) {
 		prevTime := time.Now().UnixMilli()
 
 		if r.handleComms(comm) {
-			r.updateUI(s)
+			r.updateUI()
 			remainingMs = r.getDelayMs()
 		}
 
@@ -270,7 +195,7 @@ func (r *reader) wait(s tcell.Screen, comm chan int) {
 }
 
 func (r *reader) guessSingleCharacter(c rune) bool {
-	return r.runeWidth(c) == 2
+	return r.screen.runeWidth(c) == 2
 }
 
 func (r *reader) wordBoundary(singleCharacter bool, c rune) bool {
@@ -296,15 +221,15 @@ func (r *reader) nextWord() string {
 	return ""
 }
 
-func (r *reader) read(s tcell.Screen, comm chan int) {
+func (r *reader) read(comm chan int) {
 	rune, _ := utf8.DecodeRuneInString(r.text[:4])
 	r.singleCharacter = r.guessSingleCharacter(rune)
 
 	for word := r.nextWord(); word != ""; word = r.nextWord() {
 		r.displayedWord = word
 		spinnerInc()
-		r.updateUI(s)
-		r.wait(s, comm)
+		r.updateUI()
+		r.wait(comm)
 	}
 }
 
@@ -320,7 +245,7 @@ func stripByteOrderMark(buf []byte) []byte {
 	return buf[3:]
 }
 
-func startReader(s tcell.Screen, comm chan int) {
+func startReader(s screen, comm chan int) {
 	fileReader := bufio.NewReader(os.Stdin)
 	buf, err := io.ReadAll(fileReader)
 	if err != nil {
@@ -329,10 +254,11 @@ func startReader(s tcell.Screen, comm chan int) {
 	buf = stripByteOrderMark(buf)
 
 	reader := reader{}
+	reader.screen = s
 	reader.text = string(buf)
 	reader.paused = true
 	reader.wordsPerMinute = 300
 	reader.maxByteIndex = len(reader.text)
 
-	reader.read(s, comm)
+	reader.read(comm)
 }

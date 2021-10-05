@@ -30,8 +30,10 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	screen := screen{}
+	screen.tcellScreen = s
 	comm := make(chan int, 64)
-	go startReader(s, comm)
+	go startReader(screen, comm)
 
 	debugFile := debugFile()
 	defer debugFile.Close()
