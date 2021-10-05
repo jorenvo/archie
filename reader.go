@@ -14,14 +14,14 @@ import (
 )
 
 type reader struct {
-	screen screen
-	text string
-	paused bool
-	wordsPerMinute int
-	displayedWord string
-	singleCharacter bool
-	currentByteIndex int
-	maxByteIndex int
+	screen                  screen
+	text                    string
+	paused                  bool
+	wordsPerMinute          int
+	displayedWord           string
+	singleCharacter         bool
+	currentByteIndex        int
+	maxByteIndex            int
 	newWordsPerMinuteBuffer int
 }
 

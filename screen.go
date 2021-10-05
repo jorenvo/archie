@@ -1,10 +1,10 @@
 package main
 
 import (
-	"golang.org/x/text/width"
 	"github.com/gdamore/tcell/v2"
-	"unicode/utf8"
+	"golang.org/x/text/width"
 	"math"
+	"unicode/utf8"
 )
 
 type screen struct {
