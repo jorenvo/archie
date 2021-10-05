@@ -178,10 +178,9 @@ func (r *reader) wordBoundary(singleCharacter bool, c rune) bool {
 
 func (r *reader) nextWord() string {
 	word := ""
-	startByteIndex := r.currentRuneIndex
 
-	for byteIndex, rune := range r.text[startByteIndex:] {
-		r.currentRuneIndex = startByteIndex + byteIndex
+	for ; r.currentRuneIndex < len(r.text); r.currentRuneIndex++ {
+		rune := r.text[r.currentRuneIndex]
 		if word != "" && r.wordBoundary(r.singleCharacter, rune) {
 			return word
 		}
