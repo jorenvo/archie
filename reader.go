@@ -7,26 +7,27 @@ import (
 	"log"
 	"math"
 	"os"
-	"strings"
 	"time"
 	"unicode"
-	"unicode/utf8"
 )
 
 type reader struct {
 	screen                  screen
-	text                    string
+	text                    []rune
 	paused                  bool
 	wordsPerMinute          int
 	displayedWord           string
+	debug                   string
 	singleCharacter         bool
-	currentByteIndex        int
-	maxByteIndex            int
+	currentByteIndex        int // TODO: rename now we're using runes
+	maxByteIndex            int // TODO: rename now we're using runes
 	newWordsPerMinuteBuffer int
 }
 
 func (r *reader) updateUI() {
 	r.screen.clear()
+
+	r.screen.write(r.debug, 0, 0)
 
 	unit := "words"
 	if r.singleCharacter {
@@ -52,36 +53,6 @@ const (
 	Backwards skipPastCharacterParam = true
 	Forwards                         = false
 )
-
-func (r *reader) skipPastCharacter(param skipPastCharacterParam) {
-	if param == Backwards {
-		// Go backwards 4 bytes and go forward until we reach our original
-		// pos to figure out the character right before it. We may end up
-		// with an invalid encoding in the beginning but I think that
-		// should be fine.
-		start := r.currentByteIndex - 4
-		if start < 0 {
-			return
-		}
-
-		for {
-			_, offset := utf8.DecodeRuneInString(r.text[start:])
-			if start+offset == r.currentByteIndex {
-				r.currentByteIndex = start
-				return
-			}
-
-			start += offset
-
-			if start > r.currentByteIndex {
-				log.Fatalf("Went past character we started at")
-			}
-		}
-	} else {
-		_, offset := utf8.DecodeRuneInString(r.text[r.currentByteIndex:])
-		r.currentByteIndex += offset
-	}
-}
 
 func (r *reader) handleComms(comm chan int) bool {
 	const speedInc = 5
@@ -128,11 +99,14 @@ func (r *reader) handleComms(comm chan int) bool {
 				startingByteIndex := r.currentByteIndex
 				for startingByteIndex == r.currentByteIndex {
 					for i := 0; i < skippedCharactersBackwards; i++ {
-						r.skipPastCharacter(Backwards)
+						if r.currentByteIndex > 0 {
+							r.currentByteIndex--
+						}
 					}
 					skippedCharactersBackwards++
 
-					previousBreak := strings.LastIndexAny(r.text[:r.currentByteIndex], sentenceBreaks)
+					previousBreak := lastIndexAnyRune(r.text[:r.currentByteIndex], sentenceBreaks)
+					r.debug = fmt.Sprintf("byte index at: %d, previous break at: %d", r.currentByteIndex, previousBreak)
 					if previousBreak == -1 {
 						// No break found, go back to the beginning of file
 						r.currentByteIndex = 0
@@ -140,14 +114,14 @@ func (r *reader) handleComms(comm chan int) bool {
 						break
 					} else {
 						r.currentByteIndex = previousBreak
-						r.skipPastCharacter(Forwards)
+						r.currentByteIndex++
 						r.displayedWord = r.nextWord()
 					}
 				}
 			case COMM_SENTENCE_FORWARD:
 				// Skip this character in case it's a period
-				r.skipPastCharacter(Forwards)
-				nextBreak := strings.IndexAny(r.text[r.currentByteIndex:], sentenceBreaks)
+				r.currentByteIndex++
+				nextBreak := indexAnyRune(r.text[r.currentByteIndex:], sentenceBreaks)
 				if nextBreak == -1 {
 					break
 				}
@@ -155,7 +129,7 @@ func (r *reader) handleComms(comm chan int) bool {
 				// += because IndexAny ran on substring
 				r.currentByteIndex += nextBreak
 
-				r.skipPastCharacter(Forwards)
+				r.currentByteIndex++
 				r.displayedWord = r.nextWord()
 			}
 		default:
@@ -222,8 +196,7 @@ func (r *reader) nextWord() string {
 }
 
 func (r *reader) read(comm chan int) {
-	rune, _ := utf8.DecodeRuneInString(r.text[:4])
-	r.singleCharacter = r.guessSingleCharacter(rune)
+	r.singleCharacter = r.guessSingleCharacter(r.text[0])
 
 	for word := r.nextWord(); word != ""; word = r.nextWord() {
 		r.displayedWord = word
@@ -248,14 +221,14 @@ func stripByteOrderMark(buf []byte) []byte {
 func startReader(s screen, comm chan int) {
 	fileReader := bufio.NewReader(os.Stdin)
 	buf, err := io.ReadAll(fileReader)
-	if err != nil {
+	if err != nil || len(buf) == 0 {
 		log.Fatalf("Could not read stdin: %v\n", err)
 	}
 	buf = stripByteOrderMark(buf)
 
 	reader := reader{}
 	reader.screen = s
-	reader.text = string(buf)
+	reader.text = []rune(string(buf))
 	reader.paused = true
 	reader.wordsPerMinute = 300
 	reader.maxByteIndex = len(reader.text)
