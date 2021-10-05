@@ -106,7 +106,6 @@ func (r *reader) handleComms(comm chan int) bool {
 					skippedCharactersBackwards++
 
 					previousBreak := lastIndexAnyRune(r.text[:r.currentRuneIndex], sentenceBreaks)
-					r.debug = fmt.Sprintf("byte index at: %d, previous break at: %d", r.currentRuneIndex, previousBreak)
 					if previousBreak == -1 {
 						// No break found, go back to the beginning of file
 						r.currentRuneIndex = 0
