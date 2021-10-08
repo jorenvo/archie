@@ -2,9 +2,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"os"
 	"time"
@@ -219,9 +219,14 @@ func stripByteOrderMark(buf []byte) []byte {
 func startReader(s screen, comm chan int) {
 	fileReader := bufio.NewReader(os.Stdin)
 	buf, err := io.ReadAll(fileReader)
-	if err != nil || len(buf) == 0 {
-		log.Fatalf("Could not read stdin: %v\n", err)
+	if err != nil {
+		s.error(err)
 	}
+
+	if len(buf) == 0 {
+		s.error(errors.New("No content"))
+	}
+
 	buf = stripByteOrderMark(buf)
 
 	reader := reader{}

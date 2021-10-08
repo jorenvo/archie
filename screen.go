@@ -19,6 +19,11 @@ func spinnerInc() {
 	spinnerIndex = (spinnerIndex + 1) % len(spinner)
 }
 
+func (s *screen) error(err error) {
+	tcellErr := tcell.NewEventError(err)
+	s.tcellScreen.PostEvent(tcellErr)
+}
+
 func (s *screen) clear() {
 	s.tcellScreen.Clear()
 }

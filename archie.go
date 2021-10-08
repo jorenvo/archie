@@ -7,6 +7,12 @@ import (
 	"os"
 )
 
+func quitErr(s tcell.Screen, err string) {
+	s.Fini()
+	fmt.Printf("ERROR: %v\n", err)
+	os.Exit(1)
+}
+
 func quit(s tcell.Screen) {
 	s.Fini()
 	os.Exit(0)
@@ -50,6 +56,9 @@ func main() {
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
 			comm <- COMM_RESIZE
+
+		case *tcell.EventError:
+			quitErr(s, ev.Error())
 
 		// TODO: find more idiomatic way to handle key input
 		case *tcell.EventKey:
