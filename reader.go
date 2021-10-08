@@ -139,21 +139,17 @@ func (r *reader) handleComms(comm chan int) bool {
 	return handledMessage
 }
 
-func (r *reader) getDelayMs() int64 {
-	return int64(math.Round(1_000 / (float64(r.wordsPerMinute) / float64(60))))
-}
-
 // Waits but still handles comms at 60 Hz
-func (r *reader) wait(comm chan int) {
+func (r *reader) wait(comm chan int, timeMs int64) {
 	const Hz = 60
-	remainingMs := r.getDelayMs()
+	remainingMs := timeMs
 
 	for remainingMs > 0 {
 		prevTime := time.Now().UnixMilli()
 
 		if r.handleComms(comm) {
 			r.updateUI()
-			remainingMs = r.getDelayMs()
+			remainingMs = timeMs
 		}
 
 		time.Sleep(1_000 / Hz * time.Millisecond)
@@ -193,14 +189,36 @@ func (r *reader) nextWord() string {
 	return ""
 }
 
+func (r *reader) getDelayMs() int64 {
+	return int64(math.Round(1_000 / (float64(r.wordsPerMinute) / float64(60))))
+}
+
+func (r *reader) getBlankRatio() float64 {
+	if r.singleCharacter {
+		return 0.2 // TODO: is this too fast or slow?
+	} else {
+		return 0
+	}
+}
+
 func (r *reader) read(comm chan int) {
 	r.singleCharacter = r.guessSingleCharacter(r.text[0])
 
 	for word := r.nextWord(); word != ""; word = r.nextWord() {
+		blankRatio := r.getBlankRatio()
+		delayMs := float64(r.getDelayMs())
+		wordMs := int64(delayMs * (1.0 - blankRatio))
+		blankMs := int64(delayMs * blankRatio)
+
 		r.displayedWord = word
 		spinnerInc()
 		r.updateUI()
-		r.wait(comm)
+		r.wait(comm, wordMs)
+
+		if blankMs > 0 {
+			r.screen.clearWord()
+			r.wait(comm, blankMs)
+		}
 	}
 }
 

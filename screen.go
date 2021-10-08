@@ -4,6 +4,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"golang.org/x/text/width"
 	"math"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -46,12 +47,26 @@ func (s *screen) write(word string, col int, row int) {
 	s.tcellScreen.Show()
 }
 
+func (s *screen) getWordHeight() int {
+	_, height := s.tcellScreen.Size()
+	return height / 2
+}
+
 func (s *screen) writeWord(word string) {
-	width, height := s.tcellScreen.Size()
+	width, _ := s.tcellScreen.Size()
 	s.write(
 		word,
 		width/2-utf8.RuneCountInString(word)/2,
-		height/2,
+		s.getWordHeight(),
+	)
+}
+
+func (s *screen) clearWord() {
+	width, _ := s.tcellScreen.Size()
+	s.write(
+		strings.Repeat(" ", width),
+		0,
+		s.getWordHeight(),
 	)
 }
 
