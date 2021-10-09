@@ -51,8 +51,13 @@ func (r *reader) writeMiddleWithContext() {
 		}
 	}
 
-	wordAndContext := string(r.text[left : right+1])
-	r.screen.writeWord(wordAndContext)
+	var wordAndContext []rune
+	for _, rune := range r.text[left : right+1] {
+		if unicode.IsPrint(rune) {
+			wordAndContext = append(wordAndContext, rune)
+		}
+	}
+	r.screen.writeWord(string(wordAndContext))
 }
 
 func (r *reader) writeMiddle(unit string) {
