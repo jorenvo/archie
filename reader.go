@@ -101,8 +101,80 @@ const (
 	Forwards                         = false
 )
 
-func (r *reader) handleComms(comm chan int) bool {
+func (r *reader) handleCommsWpm(msg int) bool {
+	switch {
+	case msg >= COMM_DIGIT_0 && msg <= COMM_DIGIT_9:
+		r.newWordsPerMinuteBuffer =
+			r.newWordsPerMinuteBuffer*10 + msg - COMM_DIGIT_0
+		r.paused = true
+	case msg == COMM_BACKSPACE:
+		r.newWordsPerMinuteBuffer /= 10
+	case msg == COMM_CONFIRM:
+		if r.newWordsPerMinuteBuffer != 0 {
+			r.wordsPerMinute = r.newWordsPerMinuteBuffer
+			r.newWordsPerMinuteBuffer = 0
+		}
+	}
+
+	if r.newWordsPerMinuteBuffer != 0 {
+		return true
+	}
+
+	return false
+}
+
+func (r *reader) handleCommsRegular(msg int) {
 	const speedInc = 5
+
+	switch msg {
+	case COMM_SPEED_INC:
+		r.wordsPerMinute += speedInc
+	case COMM_SPEED_DEC:
+		r.wordsPerMinute -= speedInc
+	case COMM_TOGGLE:
+		r.paused = !r.paused
+	case COMM_SINGLE_CHARACTER:
+		r.singleCharacter = !r.singleCharacter
+	case COMM_SENTENCE_BACKWARD:
+		skippedCharactersBackwards := 0
+		startingByteIndex := r.currentRuneIndex
+		for startingByteIndex == r.currentRuneIndex {
+			for i := 0; i < skippedCharactersBackwards; i++ {
+				if r.currentRuneIndex > 0 {
+					r.currentRuneIndex--
+				}
+			}
+			skippedCharactersBackwards++
+
+			previousBreak := lastIndexAnyRune(r.text[:r.currentRuneIndex], sentenceBreaks)
+			if previousBreak == -1 {
+				// No break found, go back to the beginning of file
+				r.currentRuneIndex = 0
+				r.displayedWord, r.displayedWordIndex = r.nextWord()
+				break
+			} else {
+				r.currentRuneIndex = previousBreak
+				r.currentRuneIndex++
+				r.displayedWord, r.displayedWordIndex = r.nextWord()
+			}
+		}
+	case COMM_SENTENCE_FORWARD:
+		// Skip this character in case it's a period
+		r.currentRuneIndex++
+		nextBreak := indexAnyRune(r.text[r.currentRuneIndex:], sentenceBreaks)
+		if nextBreak == -1 {
+			break
+		}
+
+		// += because IndexAny ran on substring
+		r.currentRuneIndex += nextBreak
+
+		r.currentRuneIndex++
+		r.displayedWord, r.displayedWordIndex = r.nextWord()
+	}
+}
+
+func (r *reader) handleComms(comm chan int) bool {
 	handledMessage := false
 	messagesPending := true
 	for messagesPending {
@@ -113,71 +185,12 @@ func (r *reader) handleComms(comm chan int) bool {
 			handledMessage = true
 
 			// Comms that are always handled (e.g. wpm input)
-			switch {
-			case msg >= COMM_DIGIT_0 && msg <= COMM_DIGIT_9:
-				r.newWordsPerMinuteBuffer =
-					r.newWordsPerMinuteBuffer*10 + msg - COMM_DIGIT_0
-				r.paused = true
-			case msg == COMM_BACKSPACE:
-				r.newWordsPerMinuteBuffer /= 10
-			case msg == COMM_CONFIRM:
-				if r.newWordsPerMinuteBuffer != 0 {
-					r.wordsPerMinute = r.newWordsPerMinuteBuffer
-					r.newWordsPerMinuteBuffer = 0
-				}
-			}
-
-			if r.newWordsPerMinuteBuffer != 0 {
+			if r.handleCommsWpm(msg) {
 				break
 			}
 
 			// Comms only handled when not inputting wpm
-			switch msg {
-			case COMM_SPEED_INC:
-				r.wordsPerMinute += speedInc
-			case COMM_SPEED_DEC:
-				r.wordsPerMinute -= speedInc
-			case COMM_TOGGLE:
-				r.paused = !r.paused
-			case COMM_SINGLE_CHARACTER:
-				r.singleCharacter = !r.singleCharacter
-			case COMM_SENTENCE_BACKWARD:
-				skippedCharactersBackwards := 0
-				startingByteIndex := r.currentRuneIndex
-				for startingByteIndex == r.currentRuneIndex {
-					for i := 0; i < skippedCharactersBackwards; i++ {
-						if r.currentRuneIndex > 0 {
-							r.currentRuneIndex--
-						}
-					}
-					skippedCharactersBackwards++
-
-					previousBreak := lastIndexAnyRune(r.text[:r.currentRuneIndex], sentenceBreaks)
-					if previousBreak == -1 {
-						// No break found, go back to the beginning of file
-						r.currentRuneIndex = 0
-						r.displayedWord, r.displayedWordIndex = r.nextWord()
-						break
-					} else {
-						r.currentRuneIndex = previousBreak
-						r.currentRuneIndex++
-						r.displayedWord, r.displayedWordIndex = r.nextWord()
-					}
-				}
-			case COMM_SENTENCE_FORWARD:
-				// Skip this character in case it's a period
-				r.currentRuneIndex++
-				nextBreak := indexAnyRune(r.text[r.currentRuneIndex:], sentenceBreaks)
-				if nextBreak == -1 {
-					break
-				}
-
-				// += because IndexAny ran on substring
-				r.currentRuneIndex += nextBreak
-
-				r.currentRuneIndex++
-				r.displayedWord, r.displayedWordIndex = r.nextWord()
-			}
+			r.handleCommsRegular(msg)
 		default:
 			messagesPending = false
 		}
