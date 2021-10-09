@@ -28,8 +28,9 @@ type reader struct {
 
 func (r *reader) writeMiddleWithContext() {
 	const fillRatio = 0.8
-	const guessSize = 100
-	nextCharacters := string(r.text[r.currentRuneIndex : r.currentRuneIndex+guessSize])
+	const maxGuessSize = 100
+	guessEnd := min(len(r.text), r.currentRuneIndex+maxGuessSize)
+	nextCharacters := string(r.text[r.currentRuneIndex:guessEnd])
 	width := r.screen.width() / r.screen.runeWidthString(nextCharacters)
 	charsContext := int(float64(width) * fillRatio)
 
