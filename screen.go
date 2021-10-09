@@ -38,6 +38,12 @@ func (s *screen) runeWidth(c rune) int {
 	}
 }
 
+// This will guess the width based on the first rune only.
+func (s *screen) runeWidthString(str string) int {
+	rune, _ := utf8.DecodeRuneInString(str)
+	return s.runeWidth(rune)
+}
+
 func (s *screen) write(word string, col int, row int) {
 	i := 0
 	for _, c := range word {
@@ -47,16 +53,21 @@ func (s *screen) write(word string, col int, row int) {
 	s.tcellScreen.Show()
 }
 
+func (s *screen) width() int {
+	width, _ := s.tcellScreen.Size()
+	return width
+}
+
 func (s *screen) getWordHeight() int {
 	_, height := s.tcellScreen.Size()
 	return height / 2
 }
 
 func (s *screen) writeWord(word string) {
-	width, _ := s.tcellScreen.Size()
+	middleOffset := utf8.RuneCountInString(word) / 2 * s.runeWidthString(word)
 	s.write(
 		word,
-		width/2-utf8.RuneCountInString(word)/2,
+		s.width()/2-middleOffset,
 		s.getWordHeight(),
 	)
 }

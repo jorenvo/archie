@@ -17,11 +17,54 @@ type reader struct {
 	paused                  bool
 	wordsPerMinute          int
 	displayedWord           string
+	displayedWordIndex      int
 	debug                   string
 	singleCharacter         bool
+	context                 bool
 	currentRuneIndex        int
 	maxRuneIndex            int
 	newWordsPerMinuteBuffer int
+}
+
+func (r *reader) writeMiddleWithContext() {
+	const fillRatio = 0.8
+	width := r.screen.width() / r.screen.runeWidth(r.text[r.currentRuneIndex])
+	charsContext := int(float64(width) * fillRatio)
+
+	wordCenter := r.displayedWordIndex + len([]rune(r.displayedWord))/2
+	left := wordCenter
+	right := wordCenter
+
+	// Expand context left and right. If not possible try to expand
+	// on the other side.
+	for i := 0; i < charsContext/2; i++ {
+		if left > 0 {
+			left--
+		} else if right < len(r.text) {
+			right++
+		}
+
+		if right < len(r.text) {
+			right++
+		} else if left > 0 {
+			left--
+		}
+	}
+
+	wordAndContext := string(r.text[left : right+1])
+	r.screen.writeWord(wordAndContext)
+}
+
+func (r *reader) writeMiddle(unit string) {
+	if r.newWordsPerMinuteBuffer == 0 {
+		if r.context {
+			r.writeMiddleWithContext()
+		} else {
+			r.screen.writeWord(r.displayedWord)
+		}
+	} else {
+		r.screen.writeWord(fmt.Sprintf("New %s per min: %d", unit, r.newWordsPerMinuteBuffer))
+	}
 }
 
 func (r *reader) updateUI() {
@@ -40,11 +83,7 @@ func (r *reader) updateUI() {
 		r.maxRuneIndex,
 	)
 
-	if r.newWordsPerMinuteBuffer == 0 {
-		r.screen.writeWord(r.displayedWord)
-	} else {
-		r.screen.writeWord(fmt.Sprintf("New %s per min: %d", unit, r.newWordsPerMinuteBuffer))
-	}
+	r.writeMiddle(unit)
 }
 
 type skipPastCharacterParam bool
@@ -109,12 +148,12 @@ func (r *reader) handleComms(comm chan int) bool {
 					if previousBreak == -1 {
 						// No break found, go back to the beginning of file
 						r.currentRuneIndex = 0
-						r.displayedWord = r.nextWord()
+						r.displayedWord, r.displayedWordIndex = r.nextWord()
 						break
 					} else {
 						r.currentRuneIndex = previousBreak
 						r.currentRuneIndex++
-						r.displayedWord = r.nextWord()
+						r.displayedWord, r.displayedWordIndex = r.nextWord()
 					}
 				}
 			case COMM_SENTENCE_FORWARD:
@@ -129,7 +168,7 @@ func (r *reader) handleComms(comm chan int) bool {
 				r.currentRuneIndex += nextBreak
 
 				r.currentRuneIndex++
-				r.displayedWord = r.nextWord()
+				r.displayedWord, r.displayedWordIndex = r.nextWord()
 			}
 		default:
 			messagesPending = false
@@ -172,21 +211,25 @@ func (r *reader) wordBoundary(singleCharacter bool, c rune) bool {
 	return (r.singleCharacter && !unicode.IsPunct(c)) || unicode.IsSpace(c)
 }
 
-func (r *reader) nextWord() string {
-	word := ""
+func (r *reader) nextWord() (word string, startIndex int) {
+	startIndex = -1
+	word = ""
 
 	for ; r.currentRuneIndex < len(r.text); r.currentRuneIndex++ {
 		rune := r.text[r.currentRuneIndex]
 		if word != "" && r.wordBoundary(r.singleCharacter, rune) {
-			return word
+			return word, startIndex
 		}
 
 		if !unicode.IsSpace(rune) {
 			word = word + string(rune)
+			if startIndex == -1 {
+				startIndex = r.currentRuneIndex
+			}
 		}
 	}
 
-	return ""
+	return "", -1
 }
 
 func (r *reader) getDelayMs() int64 {
@@ -194,7 +237,7 @@ func (r *reader) getDelayMs() int64 {
 }
 
 func (r *reader) getBlankRatio() float64 {
-	if r.singleCharacter {
+	if r.singleCharacter && !r.context {
 		return 0.2 // TODO: is this too fast or slow?
 	} else {
 		return 0
@@ -204,13 +247,17 @@ func (r *reader) getBlankRatio() float64 {
 func (r *reader) read(comm chan int) {
 	r.singleCharacter = r.guessSingleCharacter(r.text[0])
 
-	for word := r.nextWord(); word != ""; word = r.nextWord() {
+	for {
+		r.displayedWord, r.displayedWordIndex = r.nextWord()
+		if r.displayedWord == "" {
+			break
+		}
+
 		blankRatio := r.getBlankRatio()
 		delayMs := float64(r.getDelayMs())
 		wordMs := int64(delayMs * (1.0 - blankRatio))
 		blankMs := int64(delayMs * blankRatio)
 
-		r.displayedWord = word
 		spinnerInc()
 		r.updateUI()
 		r.wait(comm, wordMs)
@@ -251,6 +298,7 @@ func startReader(s screen, comm chan int) {
 	reader.screen = s
 	reader.text = []rune(string(buf))
 	reader.paused = true
+	reader.context = true // TODO
 	reader.wordsPerMinute = 300
 	reader.maxRuneIndex = len(reader.text)
 
