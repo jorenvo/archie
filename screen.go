@@ -40,8 +40,24 @@ func (s *screen) runeWidth(c rune) int {
 
 // This will guess the width based on the first rune only.
 func (s *screen) runeWidthString(str string) int {
-	rune, _ := utf8.DecodeRuneInString(str)
-	return s.runeWidth(rune)
+	widthToCount := make(map[int]int)
+	for _, c := range str {
+		width := s.runeWidth(c)
+		if _, present := widthToCount[width]; !present {
+			widthToCount[width] = 0
+		}
+
+		widthToCount[width] = widthToCount[width] + 1
+	}
+
+	var mostCommonWidth int = -1
+	for width, count := range widthToCount {
+		if mostCommonWidth == -1 || count > widthToCount[mostCommonWidth] {
+			mostCommonWidth = width
+		}
+	}
+
+	return mostCommonWidth
 }
 
 func (s *screen) write(word string, col int, row int) {
