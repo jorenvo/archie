@@ -202,6 +202,8 @@ func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
 				r.newWordsPerMinuteBuffer =
 					r.newWordsPerMinuteBuffer*10 + msg - COMM_DIGIT_0
 				r.paused = true
+			case msg == COMM_SEARCH:
+				r.searching = true
 			case msg == COMM_SPEED_INC:
 				r.wordsPerMinute += speedInc
 			case msg == COMM_SPEED_DEC:
@@ -210,8 +212,6 @@ func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
 				r.paused = !r.paused
 			case msg == COMM_SINGLE_CHARACTER:
 				r.singleCharacter = !r.singleCharacter
-			case msg == COMM_SEARCH:
-				r.searching = true
 			case msg == COMM_SENTENCE_BACKWARD:
 				skippedCharactersBackwards := 0
 				startingByteIndex := r.currentRuneIndex
