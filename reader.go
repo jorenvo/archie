@@ -107,6 +107,7 @@ func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 		select {
 		case char := <-commSearch:
 			handledMessage = true
+			r.context = true
 			r.search = append(r.search, char)
 		default:
 			messagesPending = false
@@ -123,6 +124,7 @@ func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 				// TODO: go to the next match
 			case COMM_CONFIRM:
 				r.searching = false
+				r.context = false
 				r.search = nil
 			case COMM_BACKSPACE:
 				newLen := max(0, len(r.search)-1)
