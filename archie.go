@@ -55,29 +55,22 @@ func main() {
 		switch ev := ev.(type) {
 		case *tcell.EventResize:
 			comm <- COMM_RESIZE
-
 		case *tcell.EventError:
 			quitErr(s, ev.Error())
-
 		case *tcell.EventKey:
 			switch ev.Key() {
 			case tcell.KeyEscape, tcell.KeyCtrlC:
 				quit(s)
 			case tcell.KeyEnter:
 				comm <- COMM_CONFIRM
-				break
 			case tcell.KeyBackspace, tcell.KeyBackspace2:
 				comm <- COMM_BACKSPACE
-				break
 			case tcell.KeyLeft:
 				comm <- COMM_SENTENCE_BACKWARD
-				break
 			case tcell.KeyRight:
 				comm <- COMM_SENTENCE_FORWARD
-				break
 			case tcell.KeyCtrlS:
 				comm <- COMM_SEARCH
-				break
 			case tcell.KeyRune:
 				rune := ev.Rune()
 				commSearch <- rune
