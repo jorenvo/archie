@@ -61,7 +61,6 @@ func main() {
 		case *tcell.EventError:
 			quitErr(s, ev.Error())
 
-		// TODO: find more idiomatic way to handle key input
 		case *tcell.EventKey:
 			switch ev.Key() {
 			case tcell.KeyEscape, tcell.KeyCtrlC:
@@ -94,7 +93,6 @@ func main() {
 				case 'w':
 					comm <- COMM_SINGLE_CHARACTER
 				case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-					// TODO: fix key[0]
 					comm <- COMM_DIGIT_0 + int(rune) - int('0')
 				}
 			}
