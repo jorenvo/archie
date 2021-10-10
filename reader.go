@@ -247,8 +247,8 @@ func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
 				r.singleCharacter = !r.singleCharacter
 			case msg == COMM_SENTENCE_BACKWARD:
 				skippedCharactersBackwards := 0
-				startingByteIndex := r.currentRuneIndex
-				for startingByteIndex == r.currentRuneIndex {
+				startingRuneIndex := r.currentRuneIndex
+				for startingRuneIndex == r.currentRuneIndex {
 					for i := 0; i < skippedCharactersBackwards; i++ {
 						if r.currentRuneIndex > 0 {
 							r.currentRuneIndex--
