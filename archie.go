@@ -50,8 +50,6 @@ func main() {
 
 		ev := s.PollEvent()
 
-		fmt.Fprintf(debugFile, "%T\n", ev)
-
 		// EventResize events happen every time a Show happens. Avoid
 		// calling an expensive Sync here.
 		switch ev := ev.(type) {
