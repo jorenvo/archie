@@ -39,7 +39,8 @@ func main() {
 	screen := screen{}
 	screen.tcellScreen = s
 	comm := make(chan int, 64)
-	go startReader(screen, comm)
+	commSearch := make(chan rune, 64)
+	go startReader(screen, comm, commSearch)
 
 	debugFile := debugFile()
 	defer debugFile.Close()
@@ -77,23 +78,26 @@ func main() {
 			case tcell.KeyRight:
 				comm <- COMM_SENTENCE_FORWARD
 				break
-			}
-
-			rune := fmt.Sprintf("%c", ev.Rune())
-			switch rune {
-			case " ":
-				comm <- COMM_TOGGLE
-			case "+":
-				comm <- COMM_SPEED_INC
-			case "-":
-				comm <- COMM_SPEED_DEC
-			case "w":
-				comm <- COMM_SINGLE_CHARACTER
-			case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
-				// TODO: fix rune[0]
-				comm <- COMM_DIGIT_0 + int(rune[0]) - int('0')
-			case "q":
-				quit(s)
+			case tcell.KeyCtrlS:
+				comm <- COMM_SEARCH
+				break
+			case tcell.KeyRune:
+				// key := fmt.Sprintf("%c", ev.Rune())
+				rune := ev.Rune()
+				commSearch <- rune
+				switch rune {
+				case ' ':
+					comm <- COMM_TOGGLE
+				case '+':
+					comm <- COMM_SPEED_INC
+				case '-':
+					comm <- COMM_SPEED_DEC
+				case 'w':
+					comm <- COMM_SINGLE_CHARACTER
+				case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+					// TODO: fix key[0]
+					comm <- COMM_DIGIT_0 + int(rune) - int('0')
+				}
 			}
 		}
 	}

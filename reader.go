@@ -19,6 +19,8 @@ type reader struct {
 	displayedWord           string
 	displayedWordIndex      int
 	debug                   string
+	searching               bool
+	search                  []rune
 	singleCharacter         bool
 	context                 bool
 	currentRuneIndex        int
@@ -101,96 +103,74 @@ const (
 	Forwards                         = false
 )
 
-func (r *reader) handleCommsWpm(msg int) bool {
-	switch {
-	case msg >= COMM_DIGIT_0 && msg <= COMM_DIGIT_9:
-		r.newWordsPerMinuteBuffer =
-			r.newWordsPerMinuteBuffer*10 + msg - COMM_DIGIT_0
-		r.paused = true
-	case msg == COMM_BACKSPACE:
-		r.newWordsPerMinuteBuffer /= 10
-	case msg == COMM_CONFIRM:
-		if r.newWordsPerMinuteBuffer != 0 {
-			r.wordsPerMinute = r.newWordsPerMinuteBuffer
-			r.newWordsPerMinuteBuffer = 0
-		}
-	}
-
-	if r.newWordsPerMinuteBuffer != 0 {
-		return true
-	}
-
-	return false
-}
-
-func (r *reader) handleCommsRegular(msg int) {
-	const speedInc = 5
-
-	switch msg {
-	case COMM_SPEED_INC:
-		r.wordsPerMinute += speedInc
-	case COMM_SPEED_DEC:
-		r.wordsPerMinute -= speedInc
-	case COMM_TOGGLE:
-		r.paused = !r.paused
-	case COMM_SINGLE_CHARACTER:
-		r.singleCharacter = !r.singleCharacter
-	case COMM_SENTENCE_BACKWARD:
-		skippedCharactersBackwards := 0
-		startingByteIndex := r.currentRuneIndex
-		for startingByteIndex == r.currentRuneIndex {
-			for i := 0; i < skippedCharactersBackwards; i++ {
-				if r.currentRuneIndex > 0 {
-					r.currentRuneIndex--
-				}
-			}
-			skippedCharactersBackwards++
-
-			previousBreak := lastIndexAnyRune(r.text[:r.currentRuneIndex], sentenceBreaks)
-			if previousBreak == -1 {
-				// No break found, go back to the beginning of file
-				r.currentRuneIndex = 0
-				r.displayedWord, r.displayedWordIndex = r.nextWord()
-				break
-			} else {
-				r.currentRuneIndex = previousBreak
-				r.currentRuneIndex++
-				r.displayedWord, r.displayedWordIndex = r.nextWord()
-			}
-		}
-	case COMM_SENTENCE_FORWARD:
-		// Skip this character in case it's a period
-		r.currentRuneIndex++
-		nextBreak := indexAnyRune(r.text[r.currentRuneIndex:], sentenceBreaks)
-		if nextBreak == -1 {
-			break
-		}
-
-		// += because IndexAny ran on substring
-		r.currentRuneIndex += nextBreak
-
-		r.currentRuneIndex++
-		r.displayedWord, r.displayedWordIndex = r.nextWord()
-	}
-}
-
-func (r *reader) handleComms(comm chan int) bool {
-	handledMessage := false
+func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 	messagesPending := true
+	handledMessage := false
 	for messagesPending {
 		select {
-		// COM_RESIZE is not explicitly handled because
-		// caller calls updateUI() if handledMessage == true
+		case char := <-commSearch:
+			handledMessage = true
+			r.search = append(r.search, char)
+		default:
+			messagesPending = false
+		}
+	}
+
+	messagesPending = true
+	for messagesPending {
+		select {
 		case msg := <-comm:
 			handledMessage = true
-
-			// Comms that are always handled (e.g. wpm input)
-			if r.handleCommsWpm(msg) {
-				break
+			switch msg {
+			case COMM_SEARCH:
+				// TODO: go to the next match
+			case COMM_CONFIRM:
+				r.searching = false
+				r.search = nil
+			case COMM_BACKSPACE:
+				newLen := max(0, len(r.search)-1)
+				r.search = r.search[:newLen]
 			}
+		default:
+			messagesPending = false
+		}
+	}
 
-			// Comms only handled when not inputting wpm
-			r.handleCommsRegular(msg)
+	r.debug = string(r.search) // TODO
+
+	return handledMessage
+}
+
+func (r *reader) handleCommsWpm(comm chan int, commSearch chan rune) bool {
+	messagesPending := true
+	for messagesPending {
+		// flush commSearch
+		select {
+		case <-commSearch:
+		default:
+			messagesPending = false
+		}
+	}
+
+	handledMessage := false
+	messagesPending = true
+	for messagesPending {
+		select {
+		case msg := <-comm:
+			handledMessage = true
+			switch {
+			case msg >= COMM_DIGIT_0 && msg <= COMM_DIGIT_9:
+				r.newWordsPerMinuteBuffer =
+					r.newWordsPerMinuteBuffer*10 + msg - COMM_DIGIT_0
+				r.paused = true
+			case msg == COMM_BACKSPACE:
+				r.newWordsPerMinuteBuffer /= 10
+			case msg == COMM_CONFIRM:
+				if r.newWordsPerMinuteBuffer != 0 {
+					r.wordsPerMinute = r.newWordsPerMinuteBuffer
+					r.newWordsPerMinuteBuffer = 0
+				}
+			}
 		default:
 			messagesPending = false
 		}
@@ -199,15 +179,105 @@ func (r *reader) handleComms(comm chan int) bool {
 	return handledMessage
 }
 
+func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
+	messagesPending := true
+	for messagesPending {
+		// flush commSearch
+		select {
+		case <-commSearch:
+		default:
+			messagesPending = false
+		}
+	}
+
+	const speedInc = 5
+	handledMessage := false
+	messagesPending = true
+	for messagesPending {
+		select {
+		case msg := <-comm:
+			handledMessage = true
+			switch {
+			case msg >= COMM_DIGIT_0 && msg <= COMM_DIGIT_9:
+				r.newWordsPerMinuteBuffer =
+					r.newWordsPerMinuteBuffer*10 + msg - COMM_DIGIT_0
+				r.paused = true
+			case msg == COMM_SPEED_INC:
+				r.wordsPerMinute += speedInc
+			case msg == COMM_SPEED_DEC:
+				r.wordsPerMinute -= speedInc
+			case msg == COMM_TOGGLE:
+				r.paused = !r.paused
+			case msg == COMM_SINGLE_CHARACTER:
+				r.singleCharacter = !r.singleCharacter
+			case msg == COMM_SEARCH:
+				r.searching = true
+			case msg == COMM_SENTENCE_BACKWARD:
+				skippedCharactersBackwards := 0
+				startingByteIndex := r.currentRuneIndex
+				for startingByteIndex == r.currentRuneIndex {
+					for i := 0; i < skippedCharactersBackwards; i++ {
+						if r.currentRuneIndex > 0 {
+							r.currentRuneIndex--
+						}
+					}
+					skippedCharactersBackwards++
+
+					previousBreak := lastIndexAnyRune(r.text[:r.currentRuneIndex], sentenceBreaks)
+					if previousBreak == -1 {
+						// No break found, go back to the beginning of file
+						r.currentRuneIndex = 0
+						r.displayedWord, r.displayedWordIndex = r.nextWord()
+						break
+					} else {
+						r.currentRuneIndex = previousBreak
+						r.currentRuneIndex++
+						r.displayedWord, r.displayedWordIndex = r.nextWord()
+					}
+				}
+			case msg == COMM_SENTENCE_FORWARD:
+				// Skip this character in case it's a period
+				r.currentRuneIndex++
+				nextBreak := indexAnyRune(r.text[r.currentRuneIndex:], sentenceBreaks)
+				if nextBreak == -1 {
+					break
+				}
+
+				// += because IndexAny ran on substring
+				r.currentRuneIndex += nextBreak
+
+				r.currentRuneIndex++
+				r.displayedWord, r.displayedWordIndex = r.nextWord()
+			}
+		default:
+			messagesPending = false
+		}
+	}
+
+	return handledMessage
+}
+
+func (r *reader) handleComms(comm chan int, commSearch chan rune) bool {
+	if r.searching {
+		return r.handleCommsSearch(comm, commSearch)
+	}
+
+	if r.newWordsPerMinuteBuffer != 0 {
+		return r.handleCommsWpm(comm, commSearch)
+	}
+
+	return r.handleCommsRegular(comm, commSearch)
+}
+
 // Waits but still handles comms at 60 Hz
-func (r *reader) wait(comm chan int, timeMs int64) {
+func (r *reader) wait(comm chan int, commSearch chan rune, timeMs int64) {
 	const Hz = 60
 	remainingMs := timeMs
 
 	for remainingMs > 0 {
 		prevTime := time.Now().UnixMilli()
 
-		if r.handleComms(comm) {
+		if r.handleComms(comm, commSearch) {
 			r.updateUI()
 			remainingMs = timeMs
 		}
@@ -265,7 +335,7 @@ func (r *reader) getBlankRatio() float64 {
 	}
 }
 
-func (r *reader) read(comm chan int) {
+func (r *reader) read(comm chan int, commSearch chan rune) {
 	r.singleCharacter = r.guessSingleCharacter(r.text[0])
 
 	for {
@@ -281,11 +351,11 @@ func (r *reader) read(comm chan int) {
 
 		spinnerInc()
 		r.updateUI()
-		r.wait(comm, wordMs)
+		r.wait(comm, commSearch, wordMs)
 
 		if blankMs > 0 {
 			r.screen.clearWord()
-			r.wait(comm, blankMs)
+			r.wait(comm, commSearch, blankMs)
 		}
 	}
 }
@@ -302,7 +372,7 @@ func stripByteOrderMark(buf []byte) []byte {
 	return buf[3:]
 }
 
-func startReader(s screen, comm chan int) {
+func startReader(s screen, comm chan int, commSearch chan rune) {
 	fileReader := bufio.NewReader(os.Stdin)
 	buf, err := io.ReadAll(fileReader)
 	if err != nil {
@@ -319,9 +389,9 @@ func startReader(s screen, comm chan int) {
 	reader.screen = s
 	reader.text = []rune(string(buf))
 	reader.paused = true
-	reader.context = true // TODO
+	reader.context = false // TODO
 	reader.wordsPerMinute = 300
 	reader.maxRuneIndex = len(reader.text)
 
-	reader.read(comm)
+	reader.read(comm, commSearch)
 }
