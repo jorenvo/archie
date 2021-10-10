@@ -157,6 +157,7 @@ func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 			case COMM_BACKSPACE:
 				newLen := max(0, len(r.currentSearch)-1)
 				r.currentSearch = r.currentSearch[:newLen]
+				r.search()
 			}
 		default:
 			messagesPending = false
