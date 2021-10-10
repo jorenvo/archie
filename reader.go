@@ -270,7 +270,9 @@ func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
 				}
 			case msg == COMM_SENTENCE_FORWARD:
 				// Skip this character in case it's a period
-				r.currentRuneIndex++
+				if r.currentRuneIndex < len(r.text) - 1 {
+					r.currentRuneIndex++
+				}
 				nextBreak := indexAnyRune(r.text[r.currentRuneIndex:], sentenceBreaks)
 				if nextBreak == -1 {
 					break
@@ -279,7 +281,9 @@ func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
 				// += because IndexAny ran on substring
 				r.currentRuneIndex += nextBreak
 
-				r.currentRuneIndex++
+				if r.currentRuneIndex < len(r.text) - 1 {
+					r.currentRuneIndex++
+				}
 				r.displayedWord, r.displayedWordIndex = r.nextWord()
 			}
 		default:
@@ -342,6 +346,7 @@ func (r *reader) nextWord() (word string, startIndex int) {
 	for ; r.currentRuneIndex < len(r.text); r.currentRuneIndex++ {
 		rune := r.text[r.currentRuneIndex]
 		if word != "" && r.wordBoundary(r.singleCharacter, rune) {
+			r.debug = fmt.Sprintf("Next word is %v starting at %v, index is %v", word, startIndex, r.currentRuneIndex)
 			return word, startIndex
 		}
 
@@ -353,6 +358,7 @@ func (r *reader) nextWord() (word string, startIndex int) {
 		}
 	}
 
+	r.debug = fmt.Sprintf("Found no word")
 	return "", -1
 }
 
