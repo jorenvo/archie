@@ -61,6 +61,15 @@ func (r *reader) writeMiddleWithContext() {
 	for _, rune := range r.text[left : right+1] {
 		if unicode.IsPrint(rune) {
 			wordAndContext = append(wordAndContext, rune)
+		} else {
+			// Skip \r (to avoid double space with DOS line endings).
+			if rune == '\r' {
+				continue
+			}
+
+			// Replace non-printable characters with a space. Usually
+			// we're replacing a \n.
+			wordAndContext = append(wordAndContext, ' ')
 		}
 	}
 	r.screen.writeWord(string(wordAndContext))
