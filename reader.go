@@ -246,26 +246,18 @@ func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
 			case msg == COMM_SINGLE_CHARACTER:
 				r.singleCharacter = !r.singleCharacter
 			case msg == COMM_SENTENCE_BACKWARD:
-				skippedCharactersBackwards := 0
+				prevBreak := r.currentRuneIndex
 				startingRuneIndex := r.currentRuneIndex
-				for startingRuneIndex == r.currentRuneIndex {
-					for i := 0; i < skippedCharactersBackwards; i++ {
-						if r.currentRuneIndex > 0 {
-							r.currentRuneIndex--
-						}
-					}
-					skippedCharactersBackwards++
-
-					previousBreak := lastIndexAnyRune(r.text[:r.currentRuneIndex], sentenceBreaks)
-					// r.debug = fmt.Sprintf("Previous break from %v is %v and char is %v. ", r.currentRuneIndex, previousBreak, r.text[r.currentRuneIndex])
-					if previousBreak == -1 {
+				for r.currentRuneIndex >= startingRuneIndex {
+					prevBreak = lastIndexAnyRune(r.text[:prevBreak], sentenceBreaks)
+					if prevBreak == -1 {
 						// No break found, go back to the beginning of file
 						r.currentRuneIndex = 0
 						r.displayedWord, r.displayedWordIndex = r.nextWord()
 						break
 					} else {
 						originalRuneIndex := r.currentRuneIndex
-						r.currentRuneIndex = previousBreak
+						r.currentRuneIndex = prevBreak
 						r.currentRuneIndex++
 						newWord, newWordIndex := r.nextWord()
 
@@ -279,7 +271,7 @@ func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
 				}
 			case msg == COMM_SENTENCE_FORWARD:
 				// Skip this character in case it's a period
-				if r.currentRuneIndex < len(r.text) - 1 {
+				if r.currentRuneIndex < len(r.text)-1 {
 					r.currentRuneIndex++
 				}
 				nextBreak := indexAnyRune(r.text[r.currentRuneIndex:], sentenceBreaks)
@@ -290,7 +282,7 @@ func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
 				// += because IndexAny ran on substring
 				r.currentRuneIndex += nextBreak
 
-				if r.currentRuneIndex < len(r.text) - 1 {
+				if r.currentRuneIndex < len(r.text)-1 {
 					r.currentRuneIndex++
 				}
 				r.displayedWord, r.displayedWordIndex = r.nextWord()
