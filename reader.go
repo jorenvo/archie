@@ -96,13 +96,6 @@ func (r *reader) updateUI() {
 	r.writeMiddle(unit)
 }
 
-type skipPastCharacterParam bool
-
-const (
-	Backwards skipPastCharacterParam = true
-	Forwards                         = false
-)
-
 func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 	messagesPending := true
 	handledMessage := false
