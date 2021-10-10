@@ -422,7 +422,6 @@ func startReader(s screen, comm chan int, commSearch chan rune) {
 	reader.screen = s
 	reader.text = []rune(string(buf))
 	reader.paused = true
-	reader.context = false // TODO
 	reader.wordsPerMinute = 300
 	reader.maxRuneIndex = len(reader.text)
 
