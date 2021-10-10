@@ -257,15 +257,24 @@ func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
 					skippedCharactersBackwards++
 
 					previousBreak := lastIndexAnyRune(r.text[:r.currentRuneIndex], sentenceBreaks)
+					// r.debug = fmt.Sprintf("Previous break from %v is %v and char is %v. ", r.currentRuneIndex, previousBreak, r.text[r.currentRuneIndex])
 					if previousBreak == -1 {
 						// No break found, go back to the beginning of file
 						r.currentRuneIndex = 0
 						r.displayedWord, r.displayedWordIndex = r.nextWord()
 						break
 					} else {
+						originalRuneIndex := r.currentRuneIndex
 						r.currentRuneIndex = previousBreak
 						r.currentRuneIndex++
-						r.displayedWord, r.displayedWordIndex = r.nextWord()
+						newWord, newWordIndex := r.nextWord()
+
+						if newWord == "" {
+							r.currentRuneIndex = originalRuneIndex
+						} else {
+							r.displayedWord = newWord
+							r.displayedWordIndex = newWordIndex
+						}
 					}
 				}
 			case msg == COMM_SENTENCE_FORWARD:
@@ -342,11 +351,12 @@ func (r *reader) wordBoundary(singleCharacter bool, c rune) bool {
 func (r *reader) nextWord() (word string, startIndex int) {
 	startIndex = -1
 	word = ""
+	r.debug = fmt.Sprintf("Starting search at %v. ", r.currentRuneIndex)
 
 	for ; r.currentRuneIndex < len(r.text); r.currentRuneIndex++ {
 		rune := r.text[r.currentRuneIndex]
 		if word != "" && r.wordBoundary(r.singleCharacter, rune) {
-			r.debug = fmt.Sprintf("Next word is %v starting at %v, index is %v", word, startIndex, r.currentRuneIndex)
+			r.debug += fmt.Sprintf("Next word is %v starting at %v, index is %v.", word, startIndex, r.currentRuneIndex)
 			return word, startIndex
 		}
 
@@ -358,7 +368,7 @@ func (r *reader) nextWord() (word string, startIndex int) {
 		}
 	}
 
-	r.debug = fmt.Sprintf("Found no word")
+	r.debug += fmt.Sprintf("Found no word.")
 	return "", -1
 }
 
