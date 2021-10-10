@@ -20,7 +20,8 @@ type reader struct {
 	displayedWordIndex      int
 	debug                   string
 	searching               bool
-	search                  []rune
+	searchStartRuneIndex    int
+	currentSearch           []rune
 	singleCharacter         bool
 	context                 bool
 	currentRuneIndex        int
@@ -91,13 +92,30 @@ func (r *reader) updateUI() {
 	r.screen.writeStatus(
 		fmt.Sprintf("%d %s per min", r.wordsPerMinute, unit),
 		r.searching,
-		string(r.search),
+		string(r.currentSearch),
 		r.paused,
 		r.currentRuneIndex,
 		r.maxRuneIndex,
 	)
 
 	r.writeMiddle(unit)
+}
+
+func (r *reader) search() {
+	for searchStart := r.searchStartRuneIndex; searchStart < len(r.text); searchStart++ {
+		for searchIndex, searchRune := range r.currentSearch {
+			textRune := r.text[searchStart+searchIndex]
+			if textRune != searchRune {
+				break
+			}
+
+			if searchIndex == len(r.currentSearch)-1 {
+				r.currentRuneIndex = searchStart
+				r.displayedWord, r.displayedWordIndex = r.nextWord()
+				return
+			}
+		}
+	}
 }
 
 func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
@@ -108,7 +126,8 @@ func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 		case char := <-commSearch:
 			handledMessage = true
 			r.context = true
-			r.search = append(r.search, char)
+			r.currentSearch = append(r.currentSearch, char)
+			r.search()
 		default:
 			messagesPending = false
 		}
@@ -125,10 +144,10 @@ func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 			case COMM_CONFIRM:
 				r.searching = false
 				r.context = false
-				r.search = nil
+				r.currentSearch = nil
 			case COMM_BACKSPACE:
-				newLen := max(0, len(r.search)-1)
-				r.search = r.search[:newLen]
+				newLen := max(0, len(r.currentSearch)-1)
+				r.currentSearch = r.currentSearch[:newLen]
 			}
 		default:
 			messagesPending = false
@@ -201,6 +220,7 @@ func (r *reader) handleCommsRegular(comm chan int, commSearch chan rune) bool {
 				r.paused = true
 			case msg == COMM_SEARCH:
 				r.searching = true
+				r.searchStartRuneIndex = r.currentRuneIndex
 			case msg == COMM_SPEED_INC:
 				r.wordsPerMinute += speedInc
 			case msg == COMM_SPEED_DEC:
