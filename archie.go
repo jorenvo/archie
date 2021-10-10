@@ -82,7 +82,6 @@ func main() {
 				comm <- COMM_SEARCH
 				break
 			case tcell.KeyRune:
-				// key := fmt.Sprintf("%c", ev.Rune())
 				rune := ev.Rune()
 				commSearch <- rune
 				switch rune {

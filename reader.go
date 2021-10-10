@@ -86,8 +86,12 @@ func (r *reader) updateUI() {
 	if r.singleCharacter {
 		unit = "characters"
 	}
+
+	// This should be part of reader
 	r.screen.writeStatus(
 		fmt.Sprintf("%d %s per min", r.wordsPerMinute, unit),
+		r.searching,
+		string(r.search),
 		r.paused,
 		r.currentRuneIndex,
 		r.maxRuneIndex,
@@ -128,8 +132,6 @@ func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 			messagesPending = false
 		}
 	}
-
-	r.debug = string(r.search) // TODO
 
 	return handledMessage
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"golang.org/x/text/width"
 	"math"
@@ -97,12 +98,16 @@ func (s *screen) clearWord() {
 	)
 }
 
-func (s *screen) statusHelp(paused bool) string {
+func (s *screen) statusHelp(searching bool, search string, paused bool) string {
+	if searching {
+		return fmt.Sprintf("[Search: %s]", search)
+	}
+
 	if paused {
 		return "[Press SPC to start.]"
-	} else {
-		return ""
 	}
+
+	return ""
 }
 
 func (s *screen) statusProgress(completed int, total int) string {
@@ -127,12 +132,12 @@ func (s *screen) statusProgress(completed int, total int) string {
 	return progress
 }
 
-func (s *screen) writeStatus(word string, paused bool, completed int, total int) {
+func (s *screen) writeStatus(word string, searching bool, search string, paused bool, completed int, total int) {
 	width, height := s.tcellScreen.Size()
 	s.write(spinner[spinnerIndex], 0, height-1)
 
-	help := s.statusHelp(paused)
-	s.write(help, width/2-utf8.RuneCountInString(help)/2, height-2)
+	help := s.statusHelp(searching, search, paused)
+	s.write(help, width/2-utf8.RuneCountInString(help)*s.runeWidthString(help)/2, height-2)
 
 	progress := s.statusProgress(completed, total)
 	s.write(progress, width/2-utf8.RuneCountInString(progress)/2, height-1)
