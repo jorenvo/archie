@@ -110,8 +110,13 @@ func (r *reader) updateUI() {
 	r.writeMiddle(unit)
 }
 
-func (r *reader) search() {
-	for searchStart := r.searchStartRuneIndex; searchStart < len(r.text); searchStart++ {
+func (r *reader) search(nextOccurrence bool) {
+	searchStart := r.searchStartRuneIndex
+	if nextOccurrence {
+		searchStart = r.currentRuneIndex
+	}
+
+	for ; searchStart < len(r.text); searchStart++ {
 		for searchIndex, searchRune := range r.currentSearch {
 			textRune := r.text[searchStart+searchIndex]
 			if textRune != searchRune {
@@ -121,6 +126,7 @@ func (r *reader) search() {
 			if searchIndex == len(r.currentSearch)-1 {
 				r.currentRuneIndex = searchStart
 				r.displayedWord, r.displayedWordIndex = r.nextWord()
+				r.debug = fmt.Sprintf("%v", r.currentRuneIndex)
 				return
 			}
 		}
@@ -136,7 +142,7 @@ func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 			handledMessage = true
 			r.context = true
 			r.currentSearch = append(r.currentSearch, char)
-			r.search()
+			r.search(false)
 		default:
 			messagesPending = false
 		}
@@ -149,7 +155,7 @@ func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 			handledMessage = true
 			switch msg {
 			case COMM_SEARCH:
-				// TODO: go to the next match
+				r.search(true)
 			case COMM_CONFIRM:
 				r.searching = false
 				r.context = false
@@ -157,7 +163,7 @@ func (r *reader) handleCommsSearch(comm chan int, commSearch chan rune) bool {
 			case COMM_BACKSPACE:
 				newLen := max(0, len(r.currentSearch)-1)
 				r.currentSearch = r.currentSearch[:newLen]
-				r.search()
+				r.search(false)
 			}
 		default:
 			messagesPending = false
