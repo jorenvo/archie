@@ -399,7 +399,7 @@ func (r *reader) read(comm chan int, commSearch chan rune) {
 		wordMs := int64(delayMs * (1.0 - blankRatio))
 		blankMs := int64(delayMs * blankRatio)
 
-		spinnerInc()
+		frameInc()
 		r.updateUI()
 		r.wait(comm, commSearch, wordMs)
 
