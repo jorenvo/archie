@@ -31,8 +31,11 @@ pixels = im.load()
 frameWidth = 32
 frameHeight = 16
 
+print("frames := [][]string{")
 for frame in range(4):
+    print("{")
     for row in range(1, 1 + frameHeight, 2):
+        print("\"", end="")
         for col in range(frameWidth * frame, frameWidth * frame + frameWidth, 2):
             blocks = (
                 pixels[col, row],
@@ -43,5 +46,6 @@ for frame in range(4):
             blocks = tuple(rgba[3] // 255 for rgba in blocks)
 
             print(blocksToUnicode[blocks], end="")
-        print()
-    print()
+        print("\",")
+    print("},")
+print("}")
