@@ -126,7 +126,6 @@ func (r *reader) search(nextOccurrence bool) {
 			if searchIndex == len(r.currentSearch)-1 {
 				r.currentRuneIndex = searchStart
 				r.displayedWord, r.displayedWordIndex = r.nextWord()
-				r.debug = fmt.Sprintf("%v", r.currentRuneIndex)
 				return
 			}
 		}
@@ -352,12 +351,10 @@ func (r *reader) wordBoundary(singleCharacter bool, c rune) bool {
 func (r *reader) nextWord() (word string, startIndex int) {
 	startIndex = -1
 	word = ""
-	r.debug = fmt.Sprintf("Starting search at %v. ", r.currentRuneIndex)
 
 	for ; r.currentRuneIndex < len(r.text); r.currentRuneIndex++ {
 		rune := r.text[r.currentRuneIndex]
 		if word != "" && r.wordBoundary(r.singleCharacter, rune) {
-			r.debug += fmt.Sprintf("Next word is %v, index is %v.", word, r.currentRuneIndex)
 			return word, startIndex
 		}
 
@@ -369,7 +366,6 @@ func (r *reader) nextWord() (word string, startIndex int) {
 		}
 	}
 
-	r.debug += fmt.Sprintf("Found no word.")
 	return "", -1
 }
 
@@ -391,7 +387,7 @@ func (r *reader) read(comm chan int, commSearch chan rune) {
 	for {
 		r.displayedWord, r.displayedWordIndex = r.nextWord()
 		if r.displayedWord == "" {
-			break
+			r.paused = true  // reached end
 		}
 
 		blankRatio := r.getBlankRatio()

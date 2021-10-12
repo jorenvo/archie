@@ -188,7 +188,7 @@ func (s *screen) renderFrame() {
 	frameHeight := len(frames[frameIndex])
 
 	for i, row := range frames[frameIndex] {
-		s.write(row, 0, height-frameHeight+i-1)
+		s.write(row, 0, height-frameHeight+i)
 	}
 }
 
