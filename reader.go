@@ -27,6 +27,8 @@ type reader struct {
 	currentRuneIndex        int
 	maxRuneIndex            int
 	newWordsPerMinuteBuffer int
+	readWords               int
+	elapsedMs               int64
 }
 
 func (r *reader) writeMiddleWithContext() {
@@ -106,6 +108,9 @@ func (r *reader) updateUI() {
 		r.currentRuneIndex,
 		r.maxRuneIndex,
 	)
+
+	stats := fmt.Sprintf("Read %d %s in %d s", r.readWords, unit, r.elapsedMs/1000)
+	r.screen.writeStats(stats)
 
 	r.writeMiddle(unit)
 }
@@ -387,7 +392,7 @@ func (r *reader) read(comm chan int, commSearch chan rune) {
 	for {
 		r.displayedWord, r.displayedWordIndex = r.nextWord()
 		if r.displayedWord == "" {
-			r.paused = true  // reached end
+			r.paused = true // reached end
 		}
 
 		blankRatio := r.getBlankRatio()
@@ -398,6 +403,9 @@ func (r *reader) read(comm chan int, commSearch chan rune) {
 		frameInc()
 		r.updateUI()
 		r.wait(comm, commSearch, wordMs)
+
+		r.elapsedMs += wordMs
+		r.readWords++
 
 		if blankMs > 0 {
 			r.screen.clearWord()

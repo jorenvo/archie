@@ -192,6 +192,11 @@ func (s *screen) renderFrame() {
 	}
 }
 
+func (s *screen) writeStats(stats string) {
+	width, height := s.tcellScreen.Size()
+	s.write(stats, width-utf8.RuneCountInString(stats)*s.runeWidthString(stats), height-2)
+}
+
 func (s *screen) writeStatus(word string, searching bool, search string, paused bool, completed int, total int) {
 	width, height := s.tcellScreen.Size()
 	s.renderFrame()
