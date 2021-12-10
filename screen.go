@@ -14,62 +14,11 @@ type screen struct {
 }
 
 // TODO: global variables?
-var frames [][]string = [][]string{
-	{
-		"  ▞▀▀▀▀▖        ",
-		" ▞ ▗▄▄ ▝▖    ▐ ▗",
-		"▗▘▗▘▄▖▚ ▚    ▐▗▘",
-		"▐ ▐▐▗▐▐ ▐    ▞▀▖",
-		"▐ ▐▐ ▘▐ ▐   ▞ ▚▘",
-		"▝▖▝▖▀▀▘ ▞ ▗▀  ▞ ",
-		" ▟▙▖  ▄█▄▞▘  ▗▘ ",
-		"█▄▄▄▄▄▄▄▄▄▄▄▄▘  ",
-	},
-	{
-		"   ▗▀▀▀▀▚       ",
-		"  ▗▘ ▄▄▖ ▚   ▐ ▖",
-		"  ▞ ▞▗▄▝▖▝▖  ▌▞ ",
-		"  ▌ ▌▌▖▌▌ ▌ ▗▀▚ ",
-		"  ▌ ▌▌▝ ▌ ▌▗▘▝▞ ",
-		"  ▚ ▘▝▀▀ ▗▚▀ ▗▘ ",
-		" ▄▄▛  ▄▄▟▛▘  ▞  ",
-		"█▄▄▄▄▄▄▄▄▄▄▄▄▘  ",
-	},
-	{
-		"    ▗▀▀▀▀▚   ▗  ",
-		"   ▗▘ ▄▄▖ ▚  ▌▗▘",
-		"   ▞ ▞▗▄▝▖▝▖ ▙▌ ",
-		"   ▌ ▌▌▖▌▌ ▌▞▗▐ ",
-		"   ▌ ▌▌▝ ▌ ▌▌ ▌ ",
-		"   ▚ ▘▝▀▀ ▗▚▘ ▌ ",
-		"  ▄▄▛  ▄▄▟▛▘ ▐  ",
-		" █▄▄▄▄▄▄▄▄▄▄▄▞  ",
-	},
-	{
-		"     ▗▀▀▀▀▚  ▗  ",
-		"    ▗▘ ▄▄▖ ▚ ▐ ▞",
-		"    ▞ ▞▗▄▝▖▝▖▐▟ ",
-		"    ▌ ▌▌▖▌▌ ▙▘▖▌",
-		"    ▌ ▌▌▝ ▌ █ ▞ ",
-		"    ▚ ▘▝▀▀ ▗▜ ▌ ",
-		"   ▄▄▛  ▄▄▟▛▘ ▌ ",
-		"  █▄▄▄▄▄▄▄▄▄▄▞  ",
-	},
-	{
-		"   ▗▀▀▀▀▚       ",
-		"  ▗▘ ▄▄▖ ▚   ▐ ▖",
-		"  ▞ ▞▗▄▝▖▝▖  ▌▞ ",
-		"  ▌ ▌▌▖▌▌ ▌ ▗▀▚ ",
-		"  ▌ ▌▌▝ ▌ ▌▗▘▝▞ ",
-		"  ▚ ▘▝▀▀ ▗▚▀ ▗▘ ",
-		" ▄▄▛  ▄▄▟▛▘  ▞  ",
-		"█▄▄▄▄▄▄▄▄▄▄▄▄▘  ",
-	},
-}
-var frameIndex int = 0
+var spinner []string = []string{"⠁", "⠈", "⠐", "⠂"}
+var spinnerIndex int = 0
 
-func frameInc() {
-	frameIndex = (frameIndex + 1) % len(frames)
+func spinnerInc() {
+	spinnerIndex = (spinnerIndex + 1) % len(spinner)
 }
 
 func (s *screen) error(err error) {
@@ -183,15 +132,6 @@ func (s *screen) statusProgress(completed int, total int) string {
 	return progress
 }
 
-func (s *screen) renderFrame() {
-	_, height := s.tcellScreen.Size()
-	frameHeight := len(frames[frameIndex])
-
-	for i, row := range frames[frameIndex] {
-		s.write(row, 0, height-frameHeight+i)
-	}
-}
-
 func (s *screen) writeStats(stats string) {
 	width, height := s.tcellScreen.Size()
 	s.write(stats, width-utf8.RuneCountInString(stats)*s.runeWidthString(stats), height-2)
@@ -199,7 +139,7 @@ func (s *screen) writeStats(stats string) {
 
 func (s *screen) writeStatus(word string, searching bool, search string, paused bool, completed int, total int) {
 	width, height := s.tcellScreen.Size()
-	s.renderFrame()
+	s.write(spinner[spinnerIndex], 0, height-1)
 
 	help := s.statusHelp(searching, search, paused)
 	s.write(help, width/2-utf8.RuneCountInString(help)*s.runeWidthString(help)/2, height-2)
